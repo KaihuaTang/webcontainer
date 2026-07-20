@@ -1,0 +1,6 @@
+# 网关依赖
+aiohttp>=3.9
+
+# container 内 Python 子项目的公共依赖（与网关共用同一 venv）
+# KnowledgeIndex（格物知新）
+flask>=3.0

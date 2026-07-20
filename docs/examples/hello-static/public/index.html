@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>静态站点示例</title>
+    <style>
+        body {
+            margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 12px;
+            font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f3f6fb; color: #1c2b3a;
+        }
+        .badge { color: #11559c; border: 1px solid #b9d0e8; background: #e8f1fa;
+                 border-radius: 999px; padding: 4px 14px; font-size: 13px; }
+        a { color: #11559c; }
+        p { color: #5b6b7b; max-width: 460px; text-align: center; padding: 0 20px; }
+    </style>
+</head>
+<body>
+    <span class="badge">runtime.kind = static</span>
+    <h1>静态站点接入成功 🎉</h1>
+    <p>本页面由网关直接托管。注意：页面内引用资源请使用<b>相对路径</b>
+       （如 <code>./app.css</code>），不要以 <code>/</code> 开头。</p>
+    <a href="/">← 返回项目主页</a>
+</body>
+</html>

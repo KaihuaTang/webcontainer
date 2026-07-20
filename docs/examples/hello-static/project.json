@@ -1,0 +1,12 @@
+{
+    "name": "静态站点示例",
+    "description": "最简单的接入方式：纯静态页面由网关直接托管，无需任何后端进程。复制本目录到 container/ 后刷新门户即可看到。",
+    "type": "静态网站",
+    "author": "工程智能研究院",
+    "tags": ["示例"],
+    "icon": "public/icon.svg",
+    "runtime": {
+        "kind": "static",
+        "root": "public"
+    }
+}

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+logs/
+*.pid
+*.log
+.DS_Store
+
+# 子项目内容不入库（各项目独立管理，且可能包含数据/隐私），仅保留目录占位
+container/*
+!container/.gitkeep

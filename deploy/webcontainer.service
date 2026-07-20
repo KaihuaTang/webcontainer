@@ -1,0 +1,22 @@
+# systemd 服务模板：开机自启 + 崩溃自动拉起。
+# 安装（按实际路径与用户修改后）：
+#   sudo cp deploy/webcontainer.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now webcontainer
+[Unit]
+Description=webcontainer 项目展示网关 (port 38000)
+After=network.target
+
+[Service]
+Type=simple
+User=kaihua
+WorkingDirectory=/home/kaihua/projects/webcontainer
+ExecStart=/home/kaihua/projects/webcontainer/.venv/bin/python -m gateway.server
+Restart=always
+RestartSec=3
+# 网关退出时把整个进程组（含全部子项目）一起回收
+KillMode=control-group
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="description" content="同济大学工程智能研究院独立项目展示网页">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f0eee6">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#262624">
+    <title>用AI点亮灵感，让想象触手可及 · 同济大学工程智能研究院</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
+    <link rel="stylesheet" href="/assets/css/portal.css">
+</head>
+<body>
+    <header class="hero">
+        <div class="hero-inner">
+            <div class="hero-org">
+                <img src="/assets/img/logo.svg" alt="" class="hero-logo">
+                <span id="site-org">同济大学工程智能研究院</span>
+            </div>
+            <h1 class="hero-title" id="site-title">用<em class="title-accent">AI</em>点亮灵感，让想象触手可及<svg
+                class="hero-star" viewBox="0 0 40 40" aria-hidden="true" fill="none"
+                stroke="#d97757" stroke-width="3.2" stroke-linecap="round"><path
+                d="M20 17 V4 M22.1 17.9 28.5 11.5 M23 20 H35 M22.1 22.1 27.8 27.8
+                   M20 23 V34 M17.9 22.1 11.5 28.5 M17 20 H5 M17.9 17.9 12.9 12.9"/></svg></h1>
+            <p class="hero-subtitle" id="site-subtitle">同济大学工程智能研究院独立项目展示网页</p>
+            <div class="hero-stats" id="hero-stats" hidden>
+                <span class="stat-chip"><b id="stat-total">0</b> 个项目</span>
+                <span class="stat-chip"><b id="stat-running">0</b> 个在线</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="page">
+        <div class="toolbar" id="toolbar" hidden>
+            <label class="search-box">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0-2a8 8 0 1 0 4.9 14.3l4.4 4.4 1.4-1.4-4.4-4.4A8 8 0 0 0 10 2z"/></svg>
+                <input type="search" id="search-input" placeholder="搜索项目名称、简介、作者…" autocomplete="off">
+            </label>
+            <div class="type-chips" id="type-chips" role="tablist" aria-label="按类型筛选"></div>
+        </div>
+
+        <section id="grid" class="grid" aria-live="polite"></section>
+
+        <div id="message" class="message" hidden></div>
+    </main>
+
+    <footer class="footer">
+        <span id="site-footer">同济大学工程智能研究院</span>
+        <span class="footer-sep">·</span>
+        <span>Powered by webcontainer 网关</span>
+    </footer>
+
+    <script src="/assets/js/portal.js"></script>
+</body>
+</html>

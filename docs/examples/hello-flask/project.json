@@ -1,0 +1,13 @@
+{
+    "name": "动态服务示例",
+    "description": "自带后端进程的接入方式：网关负责启动进程、注入 PORT 环境变量并反向代理。本例演示了子路径前缀适配的标准写法。",
+    "type": "Web 应用",
+    "author": "工程智能研究院",
+    "tags": ["示例", "Flask"],
+    "runtime": {
+        "kind": "proxy",
+        "command": ["python3", "app.py"],
+        "healthPath": "/",
+        "startupTimeoutSec": 30
+    }
+}
