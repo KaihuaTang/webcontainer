@@ -7,12 +7,12 @@
 
 - 时间轴主页：`/apps/StockMonitoring/`
 - 个股页：`/apps/StockMonitoring/stock/<symbol>`
-- 管理页：`/apps/StockMonitoring/manage`（改监控清单、改更新时刻）
+- 管理页：`/apps/StockMonitoring/manage`（只读查看监控清单与更新计划）
 
 ## 工作方式
 
 ```
-每天 美东 09:00（美股开盘前半小时，默认值，可在管理页修改；夏令时自动处理）
+每天 美东 09:00（美股开盘前半小时，默认值，改 stocks.json 的 schedule 段；夏令时自动处理）
   └─ updater/update.py（仅定时触发，页面不提供手动刷新，防恶意刷新）
        ├─ Yahoo Finance 抓取各标的近一年日线（免 key）
        ├─ claude -p <prompt> --allowedTools WebSearch WebFetch
@@ -25,9 +25,14 @@
 
 ## 配置
 
-- **监控清单 / 更新时刻**：直接在网页 `/manage` 修改。
-  清单存于 `stocks.json`，调度存于 `data/settings.json`
-  （`{"update_time": "09:00", "timezone": "America/New_York"}`）；
+- **监控清单 / 更新时刻 / 宏观信号**：全部集中在 `stocks.json` 一个文件，
+  网页管理页只读展示，**不支持在线修改**，需在服务器上直接编辑：
+  - `schedule`：`{"update_time": "09:00", "timezone": "America/New_York"}`，
+    保存后 30 秒内生效，无需重启；
+  - `stocks`：标的数组（symbol / yahoo / name / market / focus），
+    增删自下一次定时分析起生效，新标的的行情曲线届时自动抓取；
+  - `macro_watch`：AI 每日必查的宏观 / 行业信号清单。
+
   分析提示词中的标的清单与输出示例会随清单**自动生成**，无需改模板。
 - **邮件告警（可选）**：配置环境变量后，出现 buy/sell/trim 信号才发信：
   `STOCK_SMTP_HOST` `STOCK_SMTP_PORT`(默认465) `STOCK_SMTP_USER`
@@ -48,7 +53,7 @@ python3 updater/update.py                 # 完整更新：行情 + AI 联网分
 
 数据均为普通 JSON 文件（`data/`），可直接查看、备份或删除重建；
 删除某日 `data/daily/<日期>.json` 即从时间轴移除该天；
-从管理页移除的标的历史数据保留，个股页仍可只读访问。
+从清单移除的标的历史数据保留，个股页仍可只读访问。
 
 ## 免责声明
 

@@ -192,6 +192,8 @@ body {
     background: color-mix(in srgb, var(--watch) 8%, transparent);
 }
 
+.watch-chip .chip-why { opacity: .78; }
+
 .earnings-strip {
     margin-top: 14px;
     padding-top: 12px;
@@ -231,41 +233,11 @@ body {
 
 .manage-card h2 { margin: 0 0 6px; font-size: 17px; }
 
-.manage-card h3 { margin: 18px 0 8px; font-size: 14.5px; }
-
 .manage-card .count { color: var(--text-dim); font-weight: 400; font-size: 13px; }
 
 .hint { color: var(--text-dim); font-size: 12.5px; margin: 4px 0 12px; }
 
-.schedule-form, .add-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-
-.schedule-form input, .schedule-form select, .add-form input {
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--text);
-    border-radius: 9px;
-    padding: 7px 12px;
-    font-size: 13.5px;
-}
-
-.add-form input { flex: 1 1 150px; min-width: 0; }
-
-.btn-primary {
-    border: 1px solid var(--accent);
-    background: var(--accent);
-    color: #fff;
-    border-radius: 999px;
-    padding: 7px 20px;
-    font-size: 13.5px;
-    cursor: pointer;
-}
-
-.btn-primary:hover { background: var(--accent-strong); }
-.btn-primary:disabled { opacity: .55; cursor: wait; }
-
-.form-msg { font-size: 12.5px; }
-.form-msg.ok { color: var(--sell); }
-.form-msg.err { color: var(--buy); }
+.schedule-view { font-size: 15px; font-weight: 600; margin: 2px 0 6px; }
 
 .stock-tr {
     display: flex;
@@ -283,18 +255,16 @@ body {
 .td-focus { flex: 1; min-width: 0; color: var(--text-dim); font-size: 12.5px;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.btn-del {
-    flex: none;
-    border: 1px solid color-mix(in srgb, var(--buy) 45%, transparent);
-    background: none;
-    color: var(--buy);
-    border-radius: 8px;
-    padding: 3px 12px;
-    font-size: 12px;
-    cursor: pointer;
-}
+.macro-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
 
-.btn-del:hover { background: color-mix(in srgb, var(--buy) 10%, transparent); }
+.macro-item {
+    padding: 2px 11px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--line) 22%, transparent);
+}
 
 /* ---- 个股页财报前瞻 ---- */
 

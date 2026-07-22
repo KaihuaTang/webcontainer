@@ -60,8 +60,16 @@
                     (watches.length
                         ? '，<b>' + watches.length + "</b> 支标的处于关注状态：" +
                           watches.map(function (sym) {
-                              return '<a class="watch-chip" href="' + stockLink(sym) + '">' +
-                                     window.escapeHtml(sym) + "</a>";
+                              var s = stocks[sym];
+                              // 旧数据无 signal_brief 时截取信号依据首个分句兜底
+                              var brief = s.signal_brief ||
+                                  (s.signal_reason || "").split(/[，。；：,;:]/)[0].slice(0, 14);
+                              return '<a class="watch-chip" href="' + stockLink(sym) +
+                                     '" title="' + window.escapeHtml(s.signal_reason || "") + '">' +
+                                     window.escapeHtml(sym) +
+                                     (brief ? '<span class="chip-why">（' +
+                                              window.escapeHtml(brief) + '）</span>' : "") +
+                                     "</a>";
                           }).join("")
                         : "。") + "</div>";
         }

@@ -31,7 +31,6 @@ DATA_DIR = BASE_DIR / "data"
 DAILY_DIR = DATA_DIR / "daily"
 STOCKS_DIR = DATA_DIR / "stocks"
 STATUS_PATH = DATA_DIR / "status.json"
-SETTINGS_PATH = DATA_DIR / "settings.json"
 PROMPT_TEMPLATE = Path(__file__).resolve().parent / "prompt_template.md"
 
 VALID_SIGNALS = {"none", "watch", "buy", "sell", "trim"}
@@ -46,13 +45,13 @@ log = logging.getLogger("stockmon.updater")
 
 
 def load_settings() -> dict:
-    """调度设置：data/settings.json > 环境变量 > 默认值。"""
+    """调度设置：stocks.json 的 schedule 段 > 环境变量 > 默认值（每次读文件，改后即生效）。"""
     settings = {
         "update_time": os.environ.get("STOCK_UPDATE_TIME", DEFAULT_UPDATE_TIME),
         "timezone": os.environ.get("STOCK_UPDATE_TZ", DEFAULT_TIMEZONE),
     }
     try:
-        raw = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        raw = json.loads((BASE_DIR / "stocks.json").read_text(encoding="utf-8")).get("schedule")
         if isinstance(raw, dict):
             settings.update({k: str(v) for k, v in raw.items() if k in settings})
     except (OSError, json.JSONDecodeError):
@@ -166,7 +165,8 @@ def build_prompt(watchlist: list[dict], macro_watch: list[str],
         focus = stock.get("focus") or "常规基本面与消息面"
         lines.append(f"- {stock['symbol']}（{stock['name']}，关注点：{focus}）：{quote_txt}")
         example.append(f'    "{stock["symbol"]}": '
-                       '{"summary": "…", "signal": "none", "signal_reason": "", "events": []}')
+                       '{"summary": "…", "signal": "none", "signal_brief": "", '
+                       '"signal_reason": "", "events": []}')
     template = PROMPT_TEMPLATE.read_text(encoding="utf-8")
     return (template
             .replace("{{DATE}}", today)
@@ -238,6 +238,8 @@ def normalize_analysis(data: dict, watchlist: list[dict]) -> dict:
         stocks_out[sym] = {
             "summary": str(item.get("summary", "")).strip()[:300],
             "signal": signal,
+            "signal_brief": "" if signal == "none"
+                            else str(item.get("signal_brief", "")).strip()[:40],
             "signal_reason": str(item.get("signal_reason", "")).strip()[:300],
             "events": [str(e).strip()[:200] for e in events][:5],
         }
@@ -367,6 +369,7 @@ def run_update(prices_only: bool = False) -> dict:
             **quotes.get(sym, {}),
             "summary": item.get("summary", ""),
             "signal": item.get("signal", "none"),
+            "signal_brief": item.get("signal_brief", ""),
             "signal_reason": item.get("signal_reason", ""),
             "events": item.get("events", []),
         }

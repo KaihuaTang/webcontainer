@@ -17,8 +17,9 @@
 ## 判定纪律
 - 信号必须「可信」：有明确的事件/数据支撑，而非日常波动。宁缺毋滥；绝大多数日子多数标的应为 none 或 watch。
 - signal 取值：`none`（无信号）| `watch`（值得关注但不构成操作）| `buy`（逢低买入）| `trim`（减仓）| `sell`（卖出/见顶）。
+- signal 非 none 时必须同时给 `signal_brief`：≤12 字的超短原因标签，概括触发信号的核心矛盾（如「财报当日事件风险」「单日涨12%过热」「收购稀释风险」），用于首页一行展示；signal 为 none 时留空字符串。
 - 只有 buy / trim / sell 需要写入 alerts 数组（用于提醒）。
-- 全部文字用简体中文；summary ≤ 80 字；signal_reason ≤ 120 字；每条 event ≤ 60 字；earnings 的 forecast/opportunities/risks 各 ≤ 80 字。
+- 全部文字用简体中文；summary ≤ 80 字；signal_brief ≤ 12 字；signal_reason ≤ 120 字；每条 event ≤ 60 字；earnings 的 forecast/opportunities/risks 各 ≤ 80 字。
 
 ## 输出格式（严格遵守，直接输出 JSON，不要用代码块包裹；stocks 必须覆盖全部监控标的）
 {

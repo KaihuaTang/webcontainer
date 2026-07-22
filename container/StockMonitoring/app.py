@@ -2,7 +2,8 @@
 
 - 主页：顶部「今日信号」（买入/卖出提醒 + 财报临近），下方为时间轴（最新在上）；
 - 个股页：价格曲线 + 买卖节点标记 + 逐日事件与财报前瞻；
-- 管理页 /manage：增删监控股票、修改每日更新时刻（默认美东 09:00，开盘前半小时）；
+- 管理页 /manage：只读展示监控清单与每日更新计划；全部配置集中在本地
+  stocks.json（schedule / stocks / macro_watch 三段），不提供在线修改接口；
 - 更新只按每日计划自动执行，不提供手动触发接口（防恶意刷新）。
 
 遵循 webcontainer 网关的子路径前缀约定：ProxyFix(x_prefix) + url_for +
@@ -12,7 +13,6 @@
 import json
 import logging
 import os
-import re
 import threading
 import time
 from datetime import datetime
@@ -28,13 +28,7 @@ DATA_DIR = BASE_DIR / "data"
 DAILY_DIR = DATA_DIR / "daily"
 STOCKS_DIR = DATA_DIR / "stocks"
 STATUS_PATH = DATA_DIR / "status.json"
-SETTINGS_PATH = DATA_DIR / "settings.json"
 STOCKS_CONFIG = BASE_DIR / "stocks.json"
-
-SYMBOL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.\-]{0,11}$")
-TIME_RE = re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$")
-ALLOWED_TIMEZONES = ["America/New_York", "Asia/Shanghai", "UTC"]
-MAX_STOCKS = 30
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("stockmon")
@@ -44,19 +38,12 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_
 
 update_lock = threading.Lock()
 update_running = threading.Event()
-config_lock = threading.Lock()
 
 
-# ---- 配置读写 -----------------------------------------------------------
+# ---- 配置读取（只读；修改需直接编辑 stocks.json） ------------------------
 
 def load_config() -> dict:
     return json.loads(STOCKS_CONFIG.read_text(encoding="utf-8"))
-
-
-def save_config(config: dict) -> None:
-    tmp = STOCKS_CONFIG.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(config, ensure_ascii=False, indent=4), encoding="utf-8")
-    os.replace(tmp, STOCKS_CONFIG)
 
 
 def load_watchlist() -> list[dict]:
@@ -65,13 +52,6 @@ def load_watchlist() -> list[dict]:
 
 def watchlist_map() -> dict[str, dict]:
     return {s["symbol"]: s for s in load_watchlist()}
-
-
-def save_settings(settings: dict) -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = SETTINGS_PATH.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(settings, ensure_ascii=False, indent=1), encoding="utf-8")
-    os.replace(tmp, SETTINGS_PATH)
 
 
 def read_json(path: Path, fallback=None):
@@ -173,86 +153,17 @@ def api_status():
     })
 
 
-# ---- 管理 API -----------------------------------------------------------
+# ---- 管理 API（只读；配置修改需直接编辑 stocks.json） --------------------
 
 @app.route("/api/settings")
 def api_settings():
+    # 只返回展示所需内容，不暴露服务器路径等部署信息
+    config = load_config()
     return jsonify({
         "schedule": schedule_info(),
-        "timezones": ALLOWED_TIMEZONES,
-        "watchlist": load_watchlist(),
-        "max_stocks": MAX_STOCKS,
+        "watchlist": config["stocks"],
+        "macro_watch": config.get("macro_watch", []),
     })
-
-
-@app.route("/api/settings/schedule", methods=["POST"])
-def api_settings_schedule():
-    data = request.get_json(silent=True) or {}
-    update_time = str(data.get("update_time", "")).strip()
-    timezone = str(data.get("timezone", "")).strip()
-    if not TIME_RE.match(update_time):
-        return jsonify({"ok": False, "message": "时间格式应为 HH:MM"}), 400
-    if timezone not in ALLOWED_TIMEZONES:
-        return jsonify({"ok": False, "message": "不支持的时区"}), 400
-    hh, mm = update_time.split(":")
-    save_settings({"update_time": f"{int(hh):02d}:{mm}", "timezone": timezone})
-    log.info("更新计划已修改：%s %s", timezone, update_time)
-    return jsonify({"ok": True, "schedule": schedule_info()})
-
-
-@app.route("/api/watchlist/add", methods=["POST"])
-def api_watchlist_add():
-    data = request.get_json(silent=True) or {}
-    symbol = str(data.get("symbol", "")).strip().upper()
-    yahoo = str(data.get("yahoo", "")).strip() or symbol
-    name = str(data.get("name", "")).strip() or symbol
-    focus = str(data.get("focus", "")).strip()[:120]
-
-    if not SYMBOL_RE.match(symbol) or not SYMBOL_RE.match(yahoo):
-        return jsonify({"ok": False, "message": "代码只能包含字母、数字、点、连字符（≤12 位）"}), 400
-
-    with config_lock:
-        config = load_config()
-        if any(s["symbol"] == symbol for s in config["stocks"]):
-            return jsonify({"ok": False, "message": f"{symbol} 已在监控列表中"}), 400
-        if len(config["stocks"]) >= MAX_STOCKS:
-            return jsonify({"ok": False, "message": f"监控数量已达上限（{MAX_STOCKS} 支）"}), 400
-
-        # 用行情接口验证代码有效性，同时预取近一年曲线
-        chart = updater.fetch_chart(yahoo)
-        if chart is None:
-            return jsonify({"ok": False, "message":
-                            f"Yahoo 上找不到代码 {yahoo} 的行情，请检查（港股需带 .HK 后缀）"}), 400
-        STOCKS_DIR.mkdir(parents=True, exist_ok=True)
-        (STOCKS_DIR / f"{symbol}.json").write_text(json.dumps({
-            "symbol": symbol, "currency": chart["currency"],
-            "series": chart["series"], "events": [],
-        }, ensure_ascii=False, indent=1), encoding="utf-8")
-
-        config["stocks"].append({"symbol": symbol, "yahoo": yahoo, "name": name,
-                                 "market": "HK" if yahoo.endswith(".HK") else "US",
-                                 "focus": focus})
-        save_config(config)
-    log.info("已添加监控标的 %s（%s）", symbol, name)
-    return jsonify({"ok": True, "watchlist": load_watchlist(),
-                    "message": f"已添加 {symbol}，将从下次定时分析起纳入监控"})
-
-
-@app.route("/api/watchlist/remove", methods=["POST"])
-def api_watchlist_remove():
-    symbol = str((request.get_json(silent=True) or {}).get("symbol", "")).strip()
-    with config_lock:
-        config = load_config()
-        remain = [s for s in config["stocks"] if s["symbol"] != symbol]
-        if len(remain) == len(config["stocks"]):
-            return jsonify({"ok": False, "message": f"列表中没有 {symbol}"}), 404
-        if not remain:
-            return jsonify({"ok": False, "message": "至少保留一支监控标的"}), 400
-        config["stocks"] = remain
-        save_config(config)
-    log.info("已移除监控标的 %s（历史数据保留）", symbol)
-    return jsonify({"ok": True, "watchlist": load_watchlist(),
-                    "message": f"已移除 {symbol}（历史数据保留，可随时重新添加）"})
 
 
 # ---- 更新调度（仅定时，无手动触发） --------------------------------------
@@ -272,7 +183,7 @@ def _run_update_safe() -> None:
 
 def _scheduler_loop() -> None:
     last_run_day = None
-    log.info("定时更新：每天 %s（可在 /manage 修改）", updater.update_time_str())
+    log.info("定时更新：每天 %s（编辑 stocks.json 的 schedule 段修改）", updater.update_time_str())
     while True:
         time.sleep(30)
         try:
