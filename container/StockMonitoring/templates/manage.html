@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}管理 · 股票信号监控{% endblock %}
+
+{% block body %}
+<a class="back-link" href="{{ url_for('index') }}">← 返回时间轴</a>
+
+<div class="intro" style="margin-top:12px">
+    <h1>监控管理</h1>
+    <p>修改监控清单与每日更新时刻。清单变更从下一次定时分析起生效；系统不提供手动触发更新。</p>
+</div>
+
+<div class="manage-card">
+    <h2>每日更新时刻</h2>
+    <p class="hint">默认美东 09:00（美股开盘前半小时），北京时间夏令时约 21:00。</p>
+    <form id="schedule-form" class="schedule-form">
+        <input type="time" id="sched-input" required>
+        <select id="tz-select"></select>
+        <button type="submit" class="btn-primary">保存</button>
+        <span class="form-msg" id="schedule-msg"></span>
+    </form>
+</div>
+
+<div class="manage-card">
+    <h2>监控股票清单 <span class="count" id="stock-count"></span></h2>
+    <div class="stock-table" id="stock-table"><div class="skeleton"></div></div>
+
+    <h3>添加标的</h3>
+    <form id="add-form" class="add-form">
+        <input id="add-symbol" placeholder="代码，如 NVDA" required maxlength="12">
+        <input id="add-yahoo" placeholder="Yahoo 代码（可留空，港股如 1810.HK）" maxlength="12">
+        <input id="add-name" placeholder="显示名称，如 英伟达" maxlength="24">
+        <input id="add-focus" placeholder="关注点（选填），如 数据中心 GPU 需求" maxlength="120">
+        <button type="submit" class="btn-primary">添加</button>
+        <span class="form-msg" id="add-msg"></span>
+    </form>
+    <p class="hint">添加时会实时校验行情代码有效性并预取近一年曲线；AI 分析自下次定时更新起覆盖新标的。</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/manage.js') }}"></script>
+{% endblock %}

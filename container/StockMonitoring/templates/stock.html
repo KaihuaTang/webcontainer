@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{{ stock.name }}（{{ stock.symbol }}）· 股票信号监控{% endblock %}
+
+{% block body %}
+<a class="back-link" href="{{ url_for('index') }}">← 返回时间轴</a>
+
+<div class="stock-head" id="stock-head"
+     data-symbol="{{ stock.symbol }}" data-name="{{ stock.name }}">
+    <div>
+        <h1>{{ stock.name }} <span class="sym">{{ stock.symbol }}</span></h1>
+        <p class="focus">{{ stock.focus }}</p>
+    </div>
+    <div class="quote" id="quote">
+        <span class="price" id="quote-price">—</span>
+        <span class="chg" id="quote-chg"></span>
+    </div>
+</div>
+
+<div class="chart-card">
+    <div class="chart-legend">
+        <span><i class="pin buy"></i>买入信号</span>
+        <span><i class="pin trim"></i>减仓信号</span>
+        <span><i class="pin sell"></i>卖出信号</span>
+    </div>
+    <div id="chart"></div>
+</div>
+
+<h2 class="entries-title">逐日跟踪</h2>
+<div id="entries" class="entries"><div class="skeleton"></div></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="{{ url_for('static', filename='js/stock.js') }}"></script>
+{% endblock %}

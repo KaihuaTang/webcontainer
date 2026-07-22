@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block body %}
+<section id="today-signals" class="today-signals" hidden></section>
+
+<div class="intro">
+    <h1>监控时间轴</h1>
+    <p>每天自动汇总 {{ watchlist|length }} 支标的的行情、新闻与买卖信号，最新更新排在最上方。点击任意标的可进入个股页查看价格曲线与历史信号节点。</p>
+</div>
+<div id="timeline" class="timeline">
+    <div class="skeleton"></div>
+    <div class="skeleton"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,95 @@
+{
+    "stocks": [
+        {
+            "symbol": "GEV",
+            "yahoo": "GEV",
+            "name": "GE Vernova",
+            "market": "US",
+            "focus": "电力设备 / AI 供电基建、订单与积压、盈利指引"
+        },
+        {
+            "symbol": "ETN",
+            "yahoo": "ETN",
+            "name": "Eaton 伊顿",
+            "market": "US",
+            "focus": "电气设备 / 数据中心供电、AI capex 受益、估值"
+        },
+        {
+            "symbol": "MSFT",
+            "yahoo": "MSFT",
+            "name": "Microsoft 微软",
+            "market": "US",
+            "focus": "云与 AI capex、Copilot 商业化、财报指引"
+        },
+        {
+            "symbol": "AMZN",
+            "yahoo": "AMZN",
+            "name": "Amazon 亚马逊",
+            "market": "US",
+            "focus": "AWS 增长、零售利润率、AI 基建投入"
+        },
+        {
+            "symbol": "META",
+            "yahoo": "META",
+            "name": "Meta",
+            "market": "US",
+            "focus": "广告景气、AI 投入与回报、开源模型生态"
+        },
+        {
+            "symbol": "MU",
+            "yahoo": "MU",
+            "name": "Micron 美光",
+            "market": "US",
+            "focus": "存储周期、AI 内存/HBM 需求、库存与定价"
+        },
+        {
+            "symbol": "TSM",
+            "yahoo": "TSM",
+            "name": "台积电",
+            "market": "US",
+            "focus": "晶圆代工需求、先进制程、出口管制与台海地缘风险"
+        },
+        {
+            "symbol": "RKLB",
+            "yahoo": "RKLB",
+            "name": "Rocket Lab",
+            "market": "US",
+            "focus": "发射节奏、Neutron 进展、合同与融资、稀释风险"
+        },
+        {
+            "symbol": "SPCX",
+            "yahoo": "SPCX",
+            "name": "SpaceX (SPCX)",
+            "market": "US",
+            "focus": "公开市场代理标的：估值、Starlink/Starship 进展、锁定期与稀释、指数资金流"
+        },
+        {
+            "symbol": "BILI",
+            "yahoo": "BILI",
+            "name": "哔哩哔哩",
+            "market": "US",
+            "focus": "中概互联网、广告与游戏、社区生态与盈利"
+        },
+        {
+            "symbol": "1810.HK",
+            "yahoo": "1810.HK",
+            "name": "小米集团",
+            "market": "HK",
+            "focus": "手机/EV/AI 设备需求、HyperOS 生态、汽车交付与毛利"
+        }
+    ],
+    "macro_watch": [
+        "QQQ 对 SPY 相对强弱",
+        "VIX",
+        "美债收益率",
+        "布伦特/WTI 油价",
+        "美伊局势与霍尔木兹海峡",
+        "半导体周期信号",
+        "AI 内存/HBM 需求",
+        "晶圆代工需求",
+        "出口管制与台海地缘风险",
+        "航天/军工信号",
+        "中国互联网与消费电子趋势",
+        "智能手机/EV/AI 设备需求"
+    ]
+}

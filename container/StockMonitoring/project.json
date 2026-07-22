@@ -1,0 +1,17 @@
+{
+    "name": "股票信号监控",
+    "description": "AI 自动盯盘：每天美股开盘前由 Claude 联网检索监控清单内各标的的行情与新闻，双向体检见顶与超跌，给出买入 / 卖出提醒与财报前瞻；时间轴汇总每日结论，个股页标记历史信号节点。",
+    "type": "投资监控",
+    "author": "汤凯华",
+    "tags": ["股票", "AI 分析", "买卖信号", "定时任务"],
+    "icon": "static/icon.svg",
+    "order": 15,
+    "runtime": {
+        "kind": "proxy",
+        "command": ["python3", "app.py"],
+        "cwd": ".",
+        "port": 3009,
+        "healthPath": "/",
+        "startupTimeoutSec": 30
+    }
+}
