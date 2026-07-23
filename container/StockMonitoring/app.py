@@ -28,6 +28,7 @@ DATA_DIR = BASE_DIR / "data"
 DAILY_DIR = DATA_DIR / "daily"
 STOCKS_DIR = DATA_DIR / "stocks"
 STATUS_PATH = DATA_DIR / "status.json"
+MACRO_STATUS_PATH = DATA_DIR / "macro_status.json"
 STOCKS_CONFIG = BASE_DIR / "stocks.json"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -163,6 +164,8 @@ def api_settings():
         "schedule": schedule_info(),
         "watchlist": config["stocks"],
         "macro_watch": config.get("macro_watch", []),
+        "macro_schedule": updater.macro_slot_str(),
+        "macro_status": read_json(MACRO_STATUS_PATH),
     })
 
 
@@ -181,9 +184,22 @@ def _run_update_safe() -> None:
         update_lock.release()
 
 
+def _run_macro_safe() -> None:
+    if not update_lock.acquire(blocking=False):
+        return
+    try:
+        updater.run_macro_update()
+    except Exception:
+        log.exception("宏观信号重选失败")
+    finally:
+        update_lock.release()
+
+
 def _scheduler_loop() -> None:
     last_slot = None
-    log.info("定时更新：每天 %s（编辑 stocks.json 的 schedule 段修改）", updater.update_time_str())
+    last_macro_slot = None
+    log.info("定时更新：每天 %s；宏观信号重选：%s（编辑 stocks.json 的 schedule 段修改）",
+             updater.update_time_str(), updater.macro_slot_str())
     while True:
         time.sleep(30)
         try:
@@ -198,6 +214,13 @@ def _scheduler_loop() -> None:
                     log.info("到达计划时刻 %s，开始更新", slot)
                     _run_update_safe()
                 break
+        weekday, hh, mm = updater.macro_slot()
+        if now.isoweekday() == weekday and now.hour == hh and now.minute == mm:
+            slot = "%s %02d:%02d" % (now.strftime("%Y-%m-%d"), hh, mm)
+            if slot != last_macro_slot:
+                last_macro_slot = slot
+                log.info("到达每周宏观信号重选时刻 %s", slot)
+                _run_macro_safe()
 
 
 def start_scheduler() -> None:

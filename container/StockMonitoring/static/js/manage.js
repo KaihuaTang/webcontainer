@@ -29,6 +29,12 @@
         document.getElementById("macro-list").innerHTML = macro.map(function (m) {
             return '<span class="macro-item">' + window.escapeHtml(m) + "</span>";
         }).join("");
+
+        var parts = [];
+        if (data.macro_schedule) parts.push("计划：" + data.macro_schedule);
+        var ms = data.macro_status || {};
+        if (ms.last_run) parts.push("上次重选 " + ms.last_run + (ms.ok ? "" : " ⚠"));
+        if (parts.length) setText("macro-updated", "（" + parts.join("；") + "）");
     }).catch(function (err) {
         document.getElementById("stock-table").innerHTML = '<div class="empty">设置加载失败：' +
             window.escapeHtml(err.message) + "</div>";

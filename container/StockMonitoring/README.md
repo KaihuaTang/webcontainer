@@ -33,6 +33,8 @@
   - `stocks`：标的数组（symbol / yahoo / name / market / focus），
     增删自下一次定时分析起生效，新标的的行情曲线届时自动抓取；
   - `macro_watch`：AI 每日必查的宏观 / 行业信号清单。
+    **每周自动重选**（默认周一美东 08:00，`schedule.macro_update` 可调）：
+    由 Claude 联网挑选与组合整体最相关的 15 条 + 时事热点 10 条并写回此数组。
 
   分析提示词中的标的清单与输出示例会随清单**自动生成**，无需改模板。
 - **邮件告警（可选）**：配置环境变量后，出现 buy/sell/trim 信号才发信：
@@ -50,6 +52,7 @@
 cd container/StockMonitoring
 python3 updater/update.py --prices-only   # 仅刷新行情曲线（秒级）
 python3 updater/update.py                 # 完整更新：行情 + AI 联网分析（分钟级）
+python3 updater/update.py --macro         # 重选宏观信号清单（组合相关 15 + 热点 10）
 ```
 
 数据均为普通 JSON 文件（`data/`），可直接查看、备份或删除重建；
