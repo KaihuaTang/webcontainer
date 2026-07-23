@@ -5,7 +5,7 @@
     python updater/update.py --prices-only  # 仅刷新行情曲线
 
 环境变量：
-    STOCK_UPDATE_TIME   每日自动更新时刻，默认 07:30
+    STOCK_UPDATE_TIME   每日自动更新时刻，可逗号分隔多个，默认 09:00,21:00
     STOCK_CLAUDE_BIN    claude CLI 路径，默认自动查找
     STOCK_CLAUDE_TIMEOUT  分析超时秒数，默认 1800
     STOCK_SMTP_HOST/PORT/USER/PASS/FROM/TO  可选：出现可信买卖信号时发送中文邮件
@@ -36,8 +36,8 @@ PROMPT_TEMPLATE = Path(__file__).resolve().parent / "prompt_template.md"
 VALID_SIGNALS = {"none", "watch", "buy", "sell", "trim"}
 SIGNAL_LABEL = {"buy": "买入", "sell": "卖出", "trim": "减仓", "watch": "关注", "none": ""}
 
-# 默认：美东 09:00，美股开盘前半小时（zoneinfo 自动处理夏令时）
-DEFAULT_UPDATE_TIME = "09:00"
+# 默认：美东 09:00 与 21:00，开盘前半小时 + 盘后复盘（zoneinfo 自动处理夏令时）
+DEFAULT_UPDATE_TIMES = "09:00,21:00"
 DEFAULT_TIMEZONE = "America/New_York"
 TZ_LABELS = {"America/New_York": "美东", "Asia/Shanghai": "北京", "UTC": "UTC"}
 
@@ -47,13 +47,18 @@ log = logging.getLogger("stockmon.updater")
 def load_settings() -> dict:
     """调度设置：stocks.json 的 schedule 段 > 环境变量 > 默认值（每次读文件，改后即生效）。"""
     settings = {
-        "update_time": os.environ.get("STOCK_UPDATE_TIME", DEFAULT_UPDATE_TIME),
+        "update_times": os.environ.get("STOCK_UPDATE_TIME", DEFAULT_UPDATE_TIMES),
         "timezone": os.environ.get("STOCK_UPDATE_TZ", DEFAULT_TIMEZONE),
     }
     try:
         raw = json.loads((BASE_DIR / "stocks.json").read_text(encoding="utf-8")).get("schedule")
         if isinstance(raw, dict):
-            settings.update({k: str(v) for k, v in raw.items() if k in settings})
+            if isinstance(raw.get("update_times"), list):
+                settings["update_times"] = ",".join(str(t) for t in raw["update_times"])
+            elif raw.get("update_time"):  # 兼容旧的单时刻字段
+                settings["update_times"] = str(raw["update_time"])
+            if raw.get("timezone"):
+                settings["timezone"] = str(raw["timezone"])
     except (OSError, json.JSONDecodeError):
         pass
     return settings
@@ -66,19 +71,21 @@ def update_timezone() -> ZoneInfo:
         return ZoneInfo(DEFAULT_TIMEZONE)
 
 
-def update_time() -> tuple[int, int]:
-    raw = load_settings()["update_time"]
-    try:
-        hh, mm = raw.strip().split(":")
-        return max(0, min(23, int(hh))), max(0, min(59, int(mm)))
-    except ValueError:
-        return 9, 0
+def update_times() -> list[tuple[int, int]]:
+    slots = set()
+    for part in load_settings()["update_times"].split(","):
+        try:
+            hh, mm = part.strip().split(":")
+            slots.add((max(0, min(23, int(hh))), max(0, min(59, int(mm)))))
+        except ValueError:
+            continue
+    return sorted(slots) or [(9, 0)]
 
 
 def update_time_str() -> str:
     settings = load_settings()
     label = TZ_LABELS.get(settings["timezone"], settings["timezone"])
-    return "%s %02d:%02d" % (label, *update_time())
+    return label + " " + " / ".join("%02d:%02d" % slot for slot in update_times())
 
 
 # ---- 行情抓取 -----------------------------------------------------------

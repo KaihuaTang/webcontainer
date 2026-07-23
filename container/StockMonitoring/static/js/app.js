@@ -157,8 +157,8 @@
         if (!days.length) {
             timeline.innerHTML =
                 '<div class="empty">还没有任何监控数据。<br>系统每天 <b>' +
-                (document.getElementById("sched-time").textContent || "美东 09:00") +
-                "</b>（美股开盘前半小时）自动联网分析一次，请稍后回来查看。</div>";
+                (document.getElementById("sched-time").textContent || "美东 09:00 / 21:00") +
+                "</b> 自动联网分析，请稍后回来查看。</div>";
             timeline.classList.remove("timeline");
             return;
         }

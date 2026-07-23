@@ -10,7 +10,7 @@
     window.fetchJSON(window.API + "/api/settings").then(function (data) {
         var sched = data.schedule || {};
         setText("schedule-view", "每天 " + (sched.label || "—") + " 自动联网分析" +
-            (sched.timezone ? "（" + sched.timezone + " " + (sched.update_time || "") + "）" : ""));
+            (sched.timezone ? "（" + sched.timezone + "）" : ""));
 
         var list = data.watchlist || [];
         setText("stock-count", "（" + list.length + " 支）");

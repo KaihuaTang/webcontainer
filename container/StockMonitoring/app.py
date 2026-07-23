@@ -79,7 +79,7 @@ def list_daily(limit: int | None = None) -> list[dict]:
 def schedule_info() -> dict:
     settings = updater.load_settings()
     return {
-        "update_time": settings["update_time"],
+        "update_times": ["%02d:%02d" % slot for slot in updater.update_times()],
         "timezone": settings["timezone"],
         "label": updater.update_time_str(),
     }
@@ -182,7 +182,7 @@ def _run_update_safe() -> None:
 
 
 def _scheduler_loop() -> None:
-    last_run_day = None
+    last_slot = None
     log.info("定时更新：每天 %s（编辑 stocks.json 的 schedule 段修改）", updater.update_time_str())
     while True:
         time.sleep(30)
@@ -190,12 +190,14 @@ def _scheduler_loop() -> None:
             now = datetime.now(updater.update_timezone())
         except Exception:
             continue
-        hh, mm = updater.update_time()
-        day_key = now.strftime("%Y-%m-%d")
-        if now.hour == hh and now.minute == mm and last_run_day != day_key:
-            last_run_day = day_key
-            log.info("到达计划时刻 %s %02d:%02d，开始每日更新", day_key, hh, mm)
-            _run_update_safe()
+        for hh, mm in updater.update_times():
+            if now.hour == hh and now.minute == mm:
+                slot = "%s %02d:%02d" % (now.strftime("%Y-%m-%d"), hh, mm)
+                if slot != last_slot:
+                    last_slot = slot
+                    log.info("到达计划时刻 %s，开始更新", slot)
+                    _run_update_safe()
+                break
 
 
 def start_scheduler() -> None:

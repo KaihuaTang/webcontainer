@@ -12,7 +12,8 @@
 ## 工作方式
 
 ```
-每天 美东 09:00（美股开盘前半小时，默认值，改 stocks.json 的 schedule 段；夏令时自动处理）
+每天两次：美东 09:00（开盘前半小时）与 21:00（盘后复盘）
+（默认值，改 stocks.json 的 schedule 段；夏令时自动处理）
   └─ updater/update.py（仅定时触发，页面不提供手动刷新，防恶意刷新）
        ├─ Yahoo Finance 抓取各标的近一年日线（免 key）
        ├─ claude -p <prompt> --allowedTools WebSearch WebFetch
@@ -27,8 +28,8 @@
 
 - **监控清单 / 更新时刻 / 宏观信号**：全部集中在 `stocks.json` 一个文件，
   网页管理页只读展示，**不支持在线修改**，需在服务器上直接编辑：
-  - `schedule`：`{"update_time": "09:00", "timezone": "America/New_York"}`，
-    保存后 30 秒内生效，无需重启；
+  - `schedule`：`{"update_times": ["09:00", "21:00"], "timezone": "America/New_York"}`，
+    每天可配多个更新时刻，保存后 30 秒内生效，无需重启；
   - `stocks`：标的数组（symbol / yahoo / name / market / focus），
     增删自下一次定时分析起生效，新标的的行情曲线届时自动抓取；
   - `macro_watch`：AI 每日必查的宏观 / 行业信号清单。

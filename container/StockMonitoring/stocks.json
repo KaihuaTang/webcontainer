@@ -1,6 +1,6 @@
 {
     "schedule": {
-        "update_time": "09:00",
+        "update_times": ["09:00", "21:00"],
         "timezone": "America/New_York"
     },
     "stocks": [
