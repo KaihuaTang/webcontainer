@@ -80,6 +80,97 @@
             "name": "小米集团",
             "market": "HK",
             "focus": "手机/EV/AI 设备需求、HyperOS 生态、汽车交付与毛利"
+        },
+        {
+            "symbol": "GOOGL",
+            "yahoo": "GOOGL",
+            "name": "Alphabet 谷歌",
+            "market": "US",
+            "focus": "搜索与广告、Gemini 与 AI 商业化、云增长、反垄断风险"
+        },
+        {
+            "symbol": "TSLA",
+            "yahoo": "TSLA",
+            "name": "Tesla 特斯拉",
+            "market": "US",
+            "focus": "交付与毛利率、FSD/Robotaxi 进展、储能业务、关键人物风险"
+        },
+        {
+            "symbol": "AAPL",
+            "yahoo": "AAPL",
+            "name": "Apple 苹果",
+            "market": "US",
+            "focus": "iPhone 需求周期、服务业务、Apple Intelligence、中国市场与关税"
+        },
+        {
+            "symbol": "NVDA",
+            "yahoo": "NVDA",
+            "name": "Nvidia 英伟达",
+            "market": "US",
+            "focus": "AI GPU 需求与供给、数据中心营收、出口管制、估值"
+        },
+        {
+            "symbol": "SNDK",
+            "yahoo": "SNDK",
+            "name": "Sandisk 闪迪",
+            "market": "US",
+            "focus": "NAND 闪存周期、AI 存储需求、定价与库存"
+        },
+        {
+            "symbol": "BRK.B",
+            "yahoo": "BRK-B",
+            "name": "Berkshire 伯克希尔 B",
+            "market": "US",
+            "focus": "现金储备与回购、保险承保、持仓变动、宏观防御属性"
+        },
+        {
+            "symbol": "ASML",
+            "yahoo": "ASML",
+            "name": "ASML 阿斯麦",
+            "market": "US",
+            "focus": "EUV 订单与积压、先进制程 capex、对华出口管制"
+        },
+        {
+            "symbol": "PLTR",
+            "yahoo": "PLTR",
+            "name": "Palantir",
+            "market": "US",
+            "focus": "政府与商业合同、AIP 增长、高估值风险"
+        },
+        {
+            "symbol": "NFLX",
+            "yahoo": "NFLX",
+            "name": "Netflix 奈飞",
+            "market": "US",
+            "focus": "订阅与广告套餐增长、内容支出、自由现金流"
+        },
+        {
+            "symbol": "0700.HK",
+            "yahoo": "0700.HK",
+            "name": "腾讯控股",
+            "market": "HK",
+            "focus": "游戏与广告景气、AI 投入与微信生态、回购节奏"
+        },
+        {
+            "symbol": "BABA",
+            "yahoo": "BABA",
+            "name": "Alibaba 阿里巴巴",
+            "market": "US",
+            "focus": "电商竞争格局、云与 AI 增长、回购、中概情绪与监管"
+        },
+        {
+            "symbol": "AVGO",
+            "yahoo": "AVGO",
+            "name": "Broadcom 博通",
+            "market": "US",
+            "focus": "AI 定制芯片（XPU）订单、网络芯片、软件业务、估值"
+        },
+        {
+            "symbol": "AMD",
+            "yahoo": "AMD",
+            "name": "AMD 超微",
+            "market": "US",
+            "focus": "MI 系列 AI 加速器进展、数据中心份额、对英伟达竞争格局"
         }
     ],
     "macro_watch": [
