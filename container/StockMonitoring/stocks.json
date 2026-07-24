@@ -178,6 +178,13 @@
             "name": "AMD 超微",
             "market": "US",
             "focus": "MI 系列 AI 加速器进展、数据中心份额、对英伟达竞争格局"
+        },
+        {
+            "symbol": "INTC",
+            "yahoo": "INTC",
+            "name": "Intel 英特尔",
+            "market": "US",
+            "focus": "18A 制程与代工客户、x86 份额与 AI 芯片路线、政府持股与重组进展"
         }
     ],
     "macro_watch": [
