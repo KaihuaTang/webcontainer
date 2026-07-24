@@ -9,6 +9,8 @@
 环境变量：
     STOCK_UPDATE_TIME   每日自动更新时刻，可逗号分隔多个，默认 09:00,21:00
     STOCK_CLAUDE_BIN    claude CLI 路径，默认自动查找
+    STOCK_CLAUDE_MODEL  分析模型，默认 claude-fable-5
+    STOCK_CLAUDE_EFFORT 思考力度，默认 xhigh
     STOCK_CLAUDE_TIMEOUT  分析超时秒数，默认 1800
     STOCK_SMTP_HOST/PORT/USER/PASS/FROM/TO  可选：出现可信买卖信号时发送中文邮件
 """
@@ -49,6 +51,10 @@ TZ_LABELS = {"America/New_York": "美东", "Asia/Shanghai": "北京", "UTC": "UT
 DEFAULT_MACRO_WEEKDAY = 1
 DEFAULT_MACRO_TIME = "08:00"
 WEEKDAY_CN = "一二三四五六日"
+
+# Claude 调用固定默认：Fable 5 + extra high 思考力度，不跟随本机全局配置
+DEFAULT_CLAUDE_MODEL = "claude-fable-5"
+DEFAULT_CLAUDE_EFFORT = "xhigh"
 
 log = logging.getLogger("stockmon.updater")
 
@@ -247,16 +253,21 @@ def run_claude_analysis(prompt: str) -> tuple[dict | None, str]:
         return None, "未找到 claude CLI（可用 STOCK_CLAUDE_BIN 指定路径）"
 
     timeout = int(os.environ.get("STOCK_CLAUDE_TIMEOUT", "1800"))
+    model = os.environ.get("STOCK_CLAUDE_MODEL", DEFAULT_CLAUDE_MODEL)
+    effort = os.environ.get("STOCK_CLAUDE_EFFORT", DEFAULT_CLAUDE_EFFORT)
     cmd = [
         claude_bin, "-p", prompt,
         "--output-format", "text",
+        "--model", model,
         "--allowedTools", "WebSearch", "WebFetch",
     ]
-    log.info("调用 Claude 进行联网分析（超时 %ds）…", timeout)
+    env = os.environ.copy()
+    env["CLAUDE_EFFORT"] = effort
+    log.info("调用 Claude 进行联网分析（model=%s，effort=%s，超时 %ds）…", model, effort, timeout)
     try:
         proc = subprocess.run(
             cmd, capture_output=True, text=True, timeout=timeout,
-            cwd=str(BASE_DIR), env=os.environ.copy(),
+            cwd=str(BASE_DIR), env=env,
         )
     except subprocess.TimeoutExpired:
         return None, f"分析超时（>{timeout}s）"

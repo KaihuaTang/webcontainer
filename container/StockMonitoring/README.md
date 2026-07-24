@@ -41,8 +41,10 @@
   `STOCK_SMTP_HOST` `STOCK_SMTP_PORT`(默认465) `STOCK_SMTP_USER`
   `STOCK_SMTP_PASS` `STOCK_SMTP_FROM` `STOCK_SMTP_TO`(逗号分隔)。
   可写入 `project.json` 的 `runtime.env`（注意勿将密码提交到公开仓库）。
-- **分析引擎**：需要本机可用的 `claude` CLI（已登录）；
-  可用 `STOCK_CLAUDE_BIN` 指定路径，`STOCK_CLAUDE_TIMEOUT` 调整超时（默认 1800s）。
+- **分析引擎**：需要本机可用的 `claude` CLI（已登录）。
+  默认固定 `claude-fable-5` + `xhigh` 思考力度，不跟随本机全局配置；
+  可用 `STOCK_CLAUDE_MODEL` / `STOCK_CLAUDE_EFFORT` 覆盖，
+  `STOCK_CLAUDE_BIN` 指定路径，`STOCK_CLAUDE_TIMEOUT` 调整超时（默认 1800s）。
 
 ## 手动运维（服务器侧）
 
