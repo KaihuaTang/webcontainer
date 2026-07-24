@@ -1,6 +1,7 @@
 """股票信号监控 WebUI。
 
-- 主页：顶部「今日信号」（买入/卖出提醒 + 财报临近），下方为时间轴（最新在上）；
+- 主页：顶部「今日信号」（买入/卖出提醒 + 财报临近），下方为时间轴（最新在上，
+  每天盘前、盘后各一张卡片）；
 - 个股页：价格曲线 + 买卖节点标记 + 逐日事件与财报前瞻；
 - 管理页 /manage：只读展示监控清单与每日更新计划；全部配置集中在本地
   stocks.json（schedule / stocks / macro_watch 三段），不提供在线修改接口；
@@ -63,10 +64,10 @@ def read_json(path: Path, fallback=None):
 
 
 def list_daily(limit: int | None = None) -> list[dict]:
-    """按日期倒序返回每日汇总。"""
+    """按时间倒序返回每次运行的汇总（每天盘前、盘后各一份，文件名 <日期>_<时段>.json）。"""
     if not DAILY_DIR.is_dir():
         return []
-    files = sorted(DAILY_DIR.glob("????-??-??.json"), reverse=True)
+    files = sorted(DAILY_DIR.glob("????-??-??*.json"), reverse=True)
     if limit:
         files = files[:limit]
     days = []
@@ -74,6 +75,7 @@ def list_daily(limit: int | None = None) -> list[dict]:
         day = read_json(f)
         if isinstance(day, dict):
             days.append(day)
+    days.sort(key=lambda d: d.get("generated_at") or d.get("date") or "", reverse=True)
     return days
 
 
@@ -131,10 +133,10 @@ def api_stock(symbol):
         abort(404)
 
     entries = []
-    for day in list_daily(120):
+    for day in list_daily(240):
         item = (day.get("stocks") or {}).get(symbol)
         if item:
-            entries.append({"date": day.get("date"), **item})
+            entries.append({"date": day.get("date"), "slot": day.get("slot"), **item})
 
     return jsonify({
         "meta": meta,

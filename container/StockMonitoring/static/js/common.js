@@ -24,6 +24,13 @@
 
     window.SIGNAL_LABEL = { buy: "买入", sell: "卖出", trim: "减仓", watch: "关注" };
 
+    window.SLOT_LABEL = { premarket: "盘前", postmarket: "盘后", intraday: "盘中" };
+
+    window.slotBadge = function (slot) {
+        var label = window.SLOT_LABEL[slot];
+        return label ? '<span class="badge-slot ' + slot + '">' + label + "</span>" : "";
+    };
+
     window.signalPill = function (signal) {
         if (!signal || signal === "none" || !window.SIGNAL_LABEL[signal]) return "";
         return '<span class="sig ' + signal + '">' + window.SIGNAL_LABEL[signal] + "</span>";

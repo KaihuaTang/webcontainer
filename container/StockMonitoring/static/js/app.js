@@ -46,7 +46,7 @@
         }
 
         var html = '<div class="today-head">今日信号 <span class="today-date">' +
-                   window.escapeHtml(day.date) + "</span></div>";
+                   window.escapeHtml(day.date) + "</span>" + window.slotBadge(day.slot) + "</div>";
 
         if (buys.length || sells.length) {
             html += '<div class="action-grid">' +
@@ -135,6 +135,7 @@
                 '<div class="day-head">' +
                     '<span class="day-date">' + window.escapeHtml(day.date) + "</span>" +
                     '<span class="day-week">' + week + "</span>" +
+                    window.slotBadge(day.slot) +
                     (isLatest ? '<span class="badge-latest">最新</span>' : "") +
                     (day.analysis_ok ? "" : '<span class="badge-noai">无 AI 分析</span>') +
                 "</div>" +

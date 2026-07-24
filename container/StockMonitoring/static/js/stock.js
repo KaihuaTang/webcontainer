@@ -158,6 +158,7 @@
                 '<div class="entry">' +
                     '<div class="entry-head">' +
                         '<span class="entry-date">' + window.escapeHtml(e.date) + "</span>" +
+                        window.slotBadge(e.slot) +
                         window.signalPill(e.signal) +
                         '<span class="entry-quote">' + window.fmtPrice(e.price, e.currency) +
                             " " + window.fmtChg(e.change_pct) + "</span>" +

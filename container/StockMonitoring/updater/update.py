@@ -56,6 +56,10 @@ WEEKDAY_CN = "一二三四五六日"
 DEFAULT_CLAUDE_MODEL = "claude-fable-5"
 DEFAULT_CLAUDE_EFFORT = "xhigh"
 
+# 运行时段：相对美股常规交易时段归类，一天盘前、盘后各存一份时间轴数据
+US_MARKET_TZ = ZoneInfo("America/New_York")
+SLOT_LABEL_CN = {"premarket": "盘前", "postmarket": "盘后", "intraday": "盘中"}
+
 log = logging.getLogger("stockmon.updater")
 
 
@@ -117,6 +121,17 @@ def macro_slot_str() -> str:
     weekday, hh, mm = macro_slot()
     tz = load_settings()["timezone"]
     return "每周%s %s %02d:%02d" % (WEEKDAY_CN[weekday - 1], TZ_LABELS.get(tz, tz), hh, mm)
+
+
+def run_slot() -> str:
+    """按美东时钟归类本次运行：盘前（<09:30）/ 盘中 / 盘后（>=16:00）。"""
+    et = datetime.now(US_MARKET_TZ)
+    minutes = et.hour * 60 + et.minute
+    if minutes < 9 * 60 + 30:
+        return "premarket"
+    if minutes >= 16 * 60:
+        return "postmarket"
+    return "intraday"
 
 
 def update_times() -> list[tuple[int, int]]:
@@ -371,7 +386,8 @@ def send_alert_email(daily: dict) -> str:
 
     msg = MIMEText("\n".join(lines), "plain", "utf-8")
     kinds = "/".join(sorted({SIGNAL_LABEL.get(a["type"], a["type"]) for a in alerts}))
-    msg["Subject"] = Header(f"【股票信号】{daily['date']} {kinds}提醒", "utf-8")
+    slot_label = SLOT_LABEL_CN.get(daily.get("slot"), "")
+    msg["Subject"] = Header(f"【股票信号】{daily['date']} {slot_label}{kinds}提醒", "utf-8")
     sender = os.environ.get("STOCK_SMTP_FROM") or os.environ.get("STOCK_SMTP_USER", "")
     msg["From"] = sender
     recipients = [t.strip() for t in to_raw.split(",") if t.strip()]
@@ -411,8 +427,10 @@ def run_update(prices_only: bool = False) -> dict:
     if analysis is not None:
         analysis = normalize_analysis(analysis, watchlist)
 
+    slot = run_slot()
     daily = {
         "date": today,
+        "slot": slot,
         "generated_at": started.strftime("%Y-%m-%d %H:%M:%S"),
         "analysis_ok": analysis is not None,
         "market_overview": (analysis or {}).get(
@@ -435,12 +453,12 @@ def run_update(prices_only: bool = False) -> dict:
         }
 
     DAILY_DIR.mkdir(parents=True, exist_ok=True)
-    (DAILY_DIR / f"{today}.json").write_text(
+    (DAILY_DIR / f"{today}_{slot}.json").write_text(
         json.dumps(daily, ensure_ascii=False, indent=1), encoding="utf-8")
     append_signal_events(daily)
 
     mail_note = send_alert_email(daily) if analysis is not None else "分析未完成，不发邮件"
-    message = (f"行情 {fetched}/{len(watchlist)} 支；"
+    message = (f"{SLOT_LABEL_CN.get(slot, '')}更新：行情 {fetched}/{len(watchlist)} 支；"
                f"AI 分析 {'成功' if analysis is not None else '未完成（' + reason + '）'}；{mail_note}")
     status = {
         "last_run": daily["generated_at"],
