@@ -22,12 +22,13 @@
     function renderToday(day) {
         if (!day) { todayBox.hidden = true; return; }
         var stocks = day.stocks || {};
-        var buys = [], sells = [], earnings = [];
+        var buys = [], sells = [], earnings = [], reactions = [];
         Object.keys(stocks).forEach(function (sym) {
             var s = stocks[sym];
             if (s.signal === "buy") buys.push([sym, s]);
             if (s.signal === "sell" || s.signal === "trim") sells.push([sym, s]);
             if (s.earnings && s.earnings.date) earnings.push([sym, s]);
+            if (s.reaction && window.REACTION_LABEL[s.reaction.type]) reactions.push([sym, s]);
         });
 
         function actionCards(list, cls, verb) {
@@ -74,6 +75,16 @@
                         : "。") + "</div>";
         }
 
+        if (reactions.length) {
+            html += '<div class="reaction-strip"><span class="strip-label">⚖️ 消息背离</span>' +
+                reactions.map(function (pair) {
+                    var sym = pair[0], r = pair[1].reaction;
+                    return '<a class="reaction-chip ' + r.type + '" href="' + stockLink(sym) +
+                           '" title="' + window.escapeHtml(window.reactionText(r)) + '">' +
+                           window.escapeHtml(sym) + " · " + window.REACTION_LABEL[r.type] + "</a>";
+                }).join("") + "</div>";
+        }
+
         if (earnings.length) {
             html += '<div class="earnings-strip"><span class="strip-label">📅 财报临近</span>' +
                 earnings.map(function (pair) {
@@ -103,7 +114,7 @@
                 '<span class="row-sym">' + window.escapeHtml(sym) + "</span>" +
                 '<span class="row-name">' + window.escapeHtml(item.name || "") + "</span>" +
                 '<span class="row-quote">' + quote + "</span>" +
-                pill + earningsBadge(item) +
+                pill + window.reactionBadge(item.reaction) + earningsBadge(item) +
                 '<span class="row-summary">' +
                     window.escapeHtml(item.summary || item.signal_reason || "") + "</span>" +
             "</a>"
@@ -121,8 +132,11 @@
 
         var stocks = day.stocks || {};
         var syms = Object.keys(stocks);
+        // 可操作信号与出现消息背离的标的始终展开，其余折叠
         var signaled = syms.filter(function (s) {
-            return ACTION_SIGNALS.indexOf(stocks[s].signal) !== -1;
+            var item = stocks[s];
+            return ACTION_SIGNALS.indexOf(item.signal) !== -1 ||
+                   (item.reaction && window.REACTION_LABEL[item.reaction.type]);
         });
         var plain = syms.filter(function (s) { return signaled.indexOf(s) === -1; });
 

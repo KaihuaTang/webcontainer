@@ -138,6 +138,28 @@
             var events = (e.events || []).map(function (ev) {
                 return "<li>" + window.escapeHtml(ev) + "</li>";
             }).join("");
+            var reaction = "";
+            if (e.reaction && window.REACTION_LABEL[e.reaction.type]) {
+                var r = e.reaction;
+                reaction =
+                    '<div class="reaction-box ' + r.type + '">' +
+                        '<div class="rb-title">⚖️ 消息—股价反应背离 · ' +
+                            window.REACTION_LABEL[r.type] +
+                            '<span class="rb-hint">' +
+                                window.escapeHtml(window.REACTION_HINT[r.type]) + "</span></div>" +
+                        (r.news
+                            ? "<p><b>消息：</b>" + window.escapeHtml(r.news) +
+                              (r.window ? "（观察窗口：" + window.escapeHtml(r.window) + "）" : "") +
+                              "</p>" : "") +
+                        (r.expected
+                            ? "<p><b>预期反应：</b>" + window.escapeHtml(r.expected) + "</p>" : "") +
+                        (r.actual
+                            ? "<p><b>实际表现：</b>" + window.escapeHtml(r.actual) + "</p>" : "") +
+                        (r.reading
+                            ? '<p class="rb-reading"><b>解读：</b>' +
+                              window.escapeHtml(r.reading) + "</p>" : "") +
+                    "</div>";
+            }
             var earnings = "";
             if (e.earnings && e.earnings.date) {
                 earnings =
@@ -162,10 +184,12 @@
                         window.signalPill(e.signal) +
                         '<span class="entry-quote">' + window.fmtPrice(e.price, e.currency) +
                             " " + window.fmtChg(e.change_pct) + "</span>" +
+                        window.reactionBadge(e.reaction) +
                     "</div>" +
                     (e.summary ? '<p class="entry-summary">' + window.escapeHtml(e.summary) + "</p>" : "") +
                     (e.signal_reason
                         ? '<p class="entry-reason">信号依据：' + window.escapeHtml(e.signal_reason) + "</p>" : "") +
+                    reaction +
                     earnings +
                     (events ? '<ul class="entry-events">' + events + "</ul>" : "") +
                 "</div>"

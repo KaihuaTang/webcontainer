@@ -31,6 +31,27 @@
         return label ? '<span class="badge-slot ' + slot + '">' + label + "</span>" : "";
     };
 
+    // 附加判断点：消息—股价反应背离（利好不涨 → 偏卖出；利空抗跌 → 偏买入）
+    window.REACTION_LABEL = { good_news_weak: "利好不涨", bad_news_resilient: "利空抗跌" };
+
+    window.REACTION_HINT = {
+        good_news_weak: "利好已充分定价、买盘透支，偏减仓/卖出",
+        bad_news_resilient: "利空已消化、卖压枯竭，偏逢低买入",
+    };
+
+    window.reactionText = function (reaction) {
+        if (!reaction) return "";
+        return [window.REACTION_HINT[reaction.type], reaction.news, reaction.actual, reaction.reading]
+            .filter(Boolean).join("｜");
+    };
+
+    window.reactionBadge = function (reaction) {
+        if (!reaction || !window.REACTION_LABEL[reaction.type]) return "";
+        return '<span class="badge-reaction ' + reaction.type + '" title="' +
+               window.escapeHtml(window.reactionText(reaction)) + '">' +
+               window.REACTION_LABEL[reaction.type] + "</span>";
+    };
+
     window.signalPill = function (signal) {
         if (!signal || signal === "none" || !window.SIGNAL_LABEL[signal]) return "";
         return '<span class="sig ' + signal + '">' + window.SIGNAL_LABEL[signal] + "</span>";

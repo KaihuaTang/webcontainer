@@ -42,6 +42,11 @@ MACRO_PROMPT_TEMPLATE = Path(__file__).resolve().parent / "macro_prompt.md"
 VALID_SIGNALS = {"none", "watch", "buy", "sell", "trim"}
 SIGNAL_LABEL = {"buy": "买入", "sell": "卖出", "trim": "减仓", "watch": "关注", "none": ""}
 
+# 附加判断点：消息—股价反应背离（利好不涨 → 偏卖出；利空抗跌 → 偏买入）
+REACTION_LABEL = {"good_news_weak": "利好不涨（偏卖出）",
+                  "bad_news_resilient": "利空抗跌（偏买入）"}
+REACTION_FIELD_LIMIT = {"news": 200, "window": 60, "expected": 150, "actual": 200, "reading": 300}
+
 # 默认：美东 09:00 与 21:00，开盘前半小时 + 盘后复盘（zoneinfo 自动处理夏令时）
 DEFAULT_UPDATE_TIMES = "09:00,21:00"
 DEFAULT_TIMEZONE = "America/New_York"
@@ -318,6 +323,15 @@ def normalize_analysis(data: dict, watchlist: list[dict]) -> dict:
             "signal_reason": str(item.get("signal_reason", "")).strip()[:300],
             "events": [str(e).strip()[:200] for e in events][:5],
         }
+        reaction = item.get("reaction")
+        if isinstance(reaction, dict):
+            rtype = str(reaction.get("type", "")).strip().lower()
+            if rtype in REACTION_LABEL:
+                stocks_out[sym]["reaction"] = {
+                    "type": rtype,
+                    **{k: str(reaction.get(k, "")).strip()[:limit]
+                       for k, limit in REACTION_FIELD_LIMIT.items()},
+                }
         earnings = item.get("earnings")
         if isinstance(earnings, dict):
             date_str = str(earnings.get("date", "")).strip()
@@ -382,6 +396,20 @@ def send_alert_email(daily: dict) -> str:
         stock = daily["stocks"].get(alert["symbol"], {})
         lines.append(f"· {alert['symbol']} —— {SIGNAL_LABEL.get(alert['type'], alert['type'])}")
         lines.append(f"  理由：{alert.get('reason') or stock.get('signal_reason', '')}")
+        reaction = stock.get("reaction")
+        if reaction:
+            lines.append(f"  消息背离：{REACTION_LABEL.get(reaction['type'], '')}"
+                         f"｜{reaction.get('news', '')} → {reaction.get('actual', '')}")
+
+    alerted = {a["symbol"] for a in alerts}
+    others = [(sym, s["reaction"]) for sym, s in daily["stocks"].items()
+              if s.get("reaction") and sym not in alerted]
+    if others:
+        lines += ["", "消息—股价反应背离（附加观察，未构成操作信号）："]
+        for sym, reaction in others:
+            lines.append(f"· {sym} —— {REACTION_LABEL.get(reaction['type'], '')}"
+                         f"：{reaction.get('reading') or reaction.get('actual', '')}")
+
     lines += ["", "市场概览：", daily.get("market_overview", ""), "", "（股票信号监控 · 自动发送）"]
 
     msg = MIMEText("\n".join(lines), "plain", "utf-8")
@@ -442,7 +470,7 @@ def run_update(prices_only: bool = False) -> dict:
     for stock in watchlist:
         sym = stock["symbol"]
         item = (analysis or {}).get("stocks", {}).get(sym, {})
-        daily["stocks"][sym] = {
+        entry = {
             "name": stock["name"],
             **quotes.get(sym, {}),
             "summary": item.get("summary", ""),
@@ -451,6 +479,11 @@ def run_update(prices_only: bool = False) -> dict:
             "signal_reason": item.get("signal_reason", ""),
             "events": item.get("events", []),
         }
+        # 可选字段，仅在模型给出时落盘：财报前瞻、消息—股价反应背离
+        for key in ("earnings", "reaction"):
+            if isinstance(item.get(key), dict):
+                entry[key] = item[key]
+        daily["stocks"][sym] = entry
 
     DAILY_DIR.mkdir(parents=True, exist_ok=True)
     (DAILY_DIR / f"{today}_{slot}.json").write_text(
