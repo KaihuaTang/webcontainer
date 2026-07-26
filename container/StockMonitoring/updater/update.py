@@ -9,7 +9,7 @@
 环境变量：
     STOCK_UPDATE_TIME   每日自动更新时刻，可逗号分隔多个，默认 09:00,21:00
     STOCK_CLAUDE_BIN    claude CLI 路径，默认自动查找
-    STOCK_CLAUDE_MODEL  分析模型，默认 claude-fable-5
+    STOCK_CLAUDE_MODEL  分析模型，默认 claude-opus-5
     STOCK_CLAUDE_EFFORT 思考力度，默认 xhigh
     STOCK_CLAUDE_TIMEOUT  分析超时秒数，默认 1800
     STOCK_SMTP_HOST/PORT/USER/PASS/FROM/TO  可选：出现可信买卖信号时发送中文邮件
@@ -52,8 +52,8 @@ DEFAULT_MACRO_WEEKDAY = 1
 DEFAULT_MACRO_TIME = "08:00"
 WEEKDAY_CN = "一二三四五六日"
 
-# Claude 调用固定默认：Fable 5 + extra high 思考力度，不跟随本机全局配置
-DEFAULT_CLAUDE_MODEL = "claude-fable-5"
+# Claude 调用固定默认：Opus 5 + extra high 思考力度，不跟随本机全局配置
+DEFAULT_CLAUDE_MODEL = "claude-opus-5"
 DEFAULT_CLAUDE_EFFORT = "xhigh"
 
 # 运行时段：相对美股常规交易时段归类，一天盘前、盘后各存一份时间轴数据
