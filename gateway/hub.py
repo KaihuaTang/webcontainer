@@ -27,6 +27,7 @@ class Hub:
         self._last_scan = 0.0
         self._scan_lock = asyncio.Lock()
         self._site_cache: tuple[float, dict] | None = None
+        self._pinned_cache: tuple[float, list[str]] | None = None
 
     # ---- 生命周期 -------------------------------------------------------
 
@@ -75,7 +76,46 @@ class Hub:
             return "stopped", None
         return app.state, app.error
 
+    def pinned_ids(self) -> list[str]:
+        """container/pinned.json 里的置顶项目 id，按文件中的先后顺序；带 mtime 缓存。
+
+        接受 {"pinned": ["id", …]} 或裸数组 ["id", …]；文件缺失、格式错误、
+        写了不存在的 id 都只记一条日志并忽略，不影响门户可用。
+        """
+        path = config.CONTAINER_DIR / config.PINNED_NAME
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            self._pinned_cache = None
+            return []
+
+        if self._pinned_cache is not None and self._pinned_cache[0] == mtime:
+            return self._pinned_cache[1]
+
+        ids: list[str] = []
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            entries = raw.get("pinned", []) if isinstance(raw, dict) else raw
+            if not isinstance(entries, list):
+                raise ValueError("pinned 必须是由项目 id 组成的数组")
+            for entry in entries:
+                pid = str(entry).strip() if isinstance(entry, str) else ""
+                if pid and pid not in ids:
+                    ids.append(pid)
+        except (OSError, ValueError) as exc:  # JSONDecodeError 是 ValueError 的子类
+            log.warning("%s 读取失败，本次忽略置顶设置：%s", config.PINNED_NAME, exc)
+            ids = []
+
+        unknown = [pid for pid in ids if pid not in self.projects]
+        if unknown:
+            log.warning("%s 里有未知项目 id（已忽略）：%s", config.PINNED_NAME, ", ".join(unknown))
+
+        self._pinned_cache = (mtime, ids)
+        return ids
+
     def portal_payload(self) -> list[dict]:
+        # 置顶项按 pinned.json 里的书写顺序排在最前；其余仍按 order + 名称
+        rank = {pid: idx for idx, pid in enumerate(self.pinned_ids())}
         items = []
         for project in self.projects.values():
             if project.hidden:
@@ -93,8 +133,13 @@ class Hub:
                 "status": status,
                 "error": error,
                 "order": project.order,
+                "pinned": project.id in rank,
             })
-        items.sort(key=lambda item: (item["order"], item["name"].lower()))
+        items.sort(key=lambda item: (
+            rank.get(item["id"], len(rank)),
+            item["order"],
+            item["name"].lower(),
+        ))
         return items
 
     def site_config(self) -> dict:

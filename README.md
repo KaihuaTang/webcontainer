@@ -41,8 +41,9 @@ webcontainer/
 │   └── server.py             #   入口：python -m gateway.server
 ├── portal/                   # 门户前端（纯静态：HTML/CSS/JS，无构建步骤）
 ├── container/                # ★ 各独立项目，一个子目录一个项目
-│   └── KnowledgeIndex/       #   示例：格物知新（Flask）
-│       └── project.json      #   项目清单（卡片信息 + 运行方式）
+│   ├── KnowledgeIndex/       #   示例：格物知新（Flask）
+│   │   └── project.json      #   项目清单（卡片信息 + 运行方式）
+│   └── pinned.json           #   置顶清单：哪些项目排在门户最前，刷新页面即生效
 ├── docs/examples/            # 新项目接入模板（静态版 / Flask 版 / Godot 版 / 前端前缀补丁）
 ├── scripts/                  # setup.sh / setup-node.sh / start.sh / stop.sh / precompress.js
 ├── deploy/                   # systemd 服务模板
@@ -300,6 +301,26 @@ vinext = Next.js on Vite，`vinext start` 是一个纯 Node HTTP 生产服务器
 但它的静态直出会优先发同名 `.br/.gz`——所以 `build:portal` 里带上 `precompress`，
 600KB 的 three.js chunk 由此降到 ~124KB。
 
+### 置顶常用项目
+
+门户卡片默认按 `project.json` 里的 `order`（小者靠前）、同 order 再按名称排列。
+若想把几个常用项目固定在最前，编辑 `container/pinned.json`：
+
+```json
+{
+    "pinned": ["StockMonitoring", "KnowledgeIndex"]
+}
+```
+
+- id 用 `container/` 下的**目录名**，数组顺序就是卡片顺序，未列出的项目仍按 `order` 排在后面；
+- 置顶卡片会带一枚橙色「置顶」徽标，描边也会加深；
+- 改完**刷新门户页即生效**，不用重启网关（按文件 mtime 判断是否重读）；
+- 文件缺失、写成非法 JSON、或列了不存在的 id 都只当作「无置顶/忽略该条」处理，
+  并在 `logs/gateway.log` 留一条 warning，不会让门户挂掉；
+- 下划线开头的键（`_说明`、`_示例`）仅作注释，网关只读 `pinned` 一个字段。
+
+`container/` 下的其他内容默认不入库，`pinned.json` 是例外（属平台配置，见 `.gitignore`）。
+
 ### 接入自测清单
 
 - [ ] 门户页出现卡片，图标/名称/简介/类型/作者显示正确；
@@ -320,6 +341,7 @@ vinext = Next.js on Vite，`vinext start` 是一个纯 Node HTTP 生产服务器
 | 修改项目清单 | 保存 `project.json` 后刷新门户页，网关检测到变更会自动重启该项目进程 |
 | 手动重启某项目 | `touch container/<id>/project.json`，刷新门户页 |
 | 下线项目 | 移出 `container/`（或先加 `"hidden": true` 只隐藏卡片），刷新门户页 |
+| 置顶常用项目 | 把目录名填进 `container/pinned.json` 的 `pinned` 数组，刷新门户页 |
 | 重启全部 | `./scripts/stop.sh && ./scripts/start.sh -d` |
 | 修改门户文案 | 编辑 `site.config.json`，刷新页面即生效 |
 | 调整门户样式 | 改 `portal/` 下的 HTML/CSS/JS，无需构建，刷新即生效 |

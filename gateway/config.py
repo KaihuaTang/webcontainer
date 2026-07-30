@@ -31,6 +31,8 @@ NODE_BIN_DIR = Path(os.environ.get("WC_NODE_BIN_DIR", BASE_DIR / ".node" / "bin"
 APPS_PREFIX = "/apps"
 
 MANIFEST_NAME = "project.json"
+# 置顶清单：container/pinned.json，列出的项目排在门户最前（改完刷新页面即生效）
+PINNED_NAME = "pinned.json"
 SCAN_INTERVAL = float(os.environ.get("WC_SCAN_INTERVAL", "5"))
 
 # 门户站点文案的兜底值（可被 site.config.json 覆盖）

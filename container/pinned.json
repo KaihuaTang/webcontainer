@@ -1,0 +1,5 @@
+{
+    "_说明": "置顶清单：列出的项目排在门户首页最前，数组顺序即卡片顺序。id 用 container/ 下的目录名；写错或已下线的 id 会被忽略，并在 logs/gateway.log 留一条警告。改完刷新门户页即生效，无需重启网关。下划线开头的键仅作注释，网关只读 pinned。",
+    "_示例": ["StockMonitoring", "KnowledgeIndex"],
+    "pinned": ["KnowledgeIndex", "StockMonitoring"]
+}

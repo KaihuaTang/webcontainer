@@ -25,6 +25,10 @@
         error: "异常",
     };
 
+    var PIN_SVG =
+        '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.6 1.1 14.9 6.4l-1.1 1.1-1.2-.3-2.4 2.4.4 2.4-1.1 1.1' +
+        '-3.2-3.2-3.5 3.5-.9-.9L5.4 9 2.2 5.8l1.1-1.1 2.4.4L8.1 2.7l-.3-1.2z"/></svg>';
+
     var STAR_SVG =
         '<svg class="hero-star" viewBox="0 0 40 40" aria-hidden="true" fill="none" ' +
         'stroke="#d97757" stroke-width="3.2" stroke-linecap="round"><path ' +
@@ -99,6 +103,7 @@
                 '<div class="card-title-wrap">' +
                     '<h2 class="card-name">' + escapeHtml(p.name) + "</h2>" +
                     '<span class="card-type">' + escapeHtml(p.type || "未分类") + "</span>" +
+                    (p.pinned ? '<span class="card-pin">' + PIN_SVG + "置顶</span>" : "") +
                 "</div>" +
                 (p.error ? "" : '<span class="card-open" aria-hidden="true">↗</span>') +
             "</div>" +
@@ -139,7 +144,7 @@
         list.forEach(function (p, idx) {
             var clickable = !p.error;
             var el = document.createElement(clickable ? "a" : "div");
-            el.className = "card" + (clickable ? "" : " disabled");
+            el.className = "card" + (clickable ? "" : " disabled") + (p.pinned ? " pinned" : "");
             el.style.animationDelay = Math.min(idx * 45, 360) + "ms";
             if (clickable) {
                 el.href = p.url;

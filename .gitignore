@@ -11,6 +11,8 @@ logs/
 # 子项目内容默认不入库（各项目独立管理，且可能包含数据/隐私），仅保留目录占位
 container/*
 !container/.gitkeep
+# 例外：置顶清单是平台配置而非项目内容，随仓库一起管理
+!container/pinned.json
 
 # 例外：StockMonitoring 为本仓库原生项目，入库其源代码；运行期数据仍排除
 !container/StockMonitoring/
