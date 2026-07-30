@@ -132,7 +132,10 @@ class Hub:
                 "type": project.type,
                 "author": project.author,
                 "tags": project.tags,
-                "url": project.url,
+                # 卡片一律指向门户内的 /apps/<id>/：站外项目由网关 302 转出去，
+                # 这样「从门户点进去」这一次访问才统计得到（否则浏览器直接跳走）
+                "url": f"{project.prefix}/",
+                "externalUrl": project.runtime.url if project.runtime.kind == KIND_LINK else None,
                 "icon": f"/api/projects/{project.id}/icon" if project.icon else None,
                 "status": status,
                 "error": error,

@@ -169,6 +169,8 @@
                 el.target = "_blank";
                 el.rel = "noopener";
                 el.setAttribute("aria-label", "打开项目 " + p.name);
+                // 站外项目经网关 302 转出，鼠标悬停时把真实目标显示出来
+                if (p.externalUrl) el.title = "站外项目：" + p.externalUrl;
             }
             el.innerHTML = cardHTML(p);
             grid.appendChild(el);
