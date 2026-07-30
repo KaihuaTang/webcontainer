@@ -43,8 +43,8 @@ webcontainer/
 ├── container/                # ★ 各独立项目，一个子目录一个项目
 │   └── KnowledgeIndex/       #   示例：格物知新（Flask）
 │       └── project.json      #   项目清单（卡片信息 + 运行方式）
-├── docs/examples/            # 新项目接入模板（静态版 / Flask 版 / 前端前缀补丁）
-├── scripts/                  # setup.sh / start.sh / stop.sh
+├── docs/examples/            # 新项目接入模板（静态版 / Flask 版 / Godot 版 / 前端前缀补丁）
+├── scripts/                  # setup.sh / setup-node.sh / start.sh / stop.sh / precompress.js
 ├── deploy/                   # systemd 服务模板
 ├── site.config.json          # 门户文案（标题、副标题、页脚），改完刷新页面即生效
 ├── requirements.txt
@@ -58,6 +58,7 @@ cd /home/kaihua/projects/webcontainer
 
 # 1. 初始化（创建 .venv 并安装依赖；本机首次已完成，可跳过）
 ./scripts/setup.sh            # 可用 PYTHON=/usr/local/bin/python3 指定基础解释器
+./scripts/setup-node.sh       # 仅当有 Node 子项目时：装平台自带 Node 到 .node/（见下）
 
 # 2. 启动
 ./scripts/start.sh            # 前台运行，Ctrl+C 退出
@@ -79,8 +80,27 @@ cd /home/kaihua/projects/webcontainer
 | `WC_HOST` | `0.0.0.0` | 监听地址 |
 | `WC_CONTAINER_DIR` | `<仓库>/container` | 子项目目录 |
 | `WC_LOGS_DIR` | `<仓库>/logs` | 日志目录 |
+| `WC_NODE_BIN_DIR` | `<仓库>/.node/bin` | 给 Node 子项目用的解释器目录（存在即前置到子进程 PATH） |
 
 例：`WC_PORT=39000 ./scripts/start.sh`
+
+### 两套「平台自带解释器」
+
+跟 Python 侧一律用仓库自带 `.venv` 同理，Node 子项目一律用仓库自带 `.node`：
+
+```bash
+./scripts/setup-node.sh                       # 装默认版本（当前 v24.18.1 LTS）到 .node/
+NODE_VERSION=v22.23.2 ./scripts/setup-node.sh # 指定版本
+https_proxy=http://127.0.0.1:7892 ./scripts/setup-node.sh   # 本机需代理出海时
+```
+
+网关启动子进程时会把 `.node/bin` 前置到它的 `PATH`，所以 `project.json` 里写
+`"command": ["node", …]` 就是这一份，不受系统 node 新旧影响
+（本机 `/usr/bin/node` 是 20.20.2，跑 vinext 会报 `does not provide an export named 'glob'`）。
+子项目装依赖同理要用它：`PATH="$PWD/../../.node/bin:$PATH" npm install`
+——**尤其是从 macOS 拷过来的项目**：`node_modules` 里的原生模块
+（rolldown / workerd / sharp / esbuild）是 darwin-arm64 版，在 Linux 上必须重装一遍。
+`.venv/` 与 `.node/` 都不入库。
 
 ### 开机自启（systemd，可选）
 
@@ -133,6 +153,9 @@ sudo systemctl enable --now webcontainer
 
 注意：目录名会成为 URL（`/apps/<目录名>/`），只能包含字母、数字、`_`、`.`、`-`。
 
+现成模板在 `docs/examples/`：`hello-static`（纯静态）、`hello-flask`（Flask 后端）、
+`godot-web`（Godot 4.7 发布包）、`nextjs-vinext`（Next.js on Vite）。
+
 ### 情形一：静态站点（最简单）
 
 ```bash
@@ -142,6 +165,32 @@ cp -r docs/examples/hello-static container/我的项目名
 
 刷新门户页即可看到卡片。**页面内引用资源请用相对路径**（`./style.css`），
 不要以 `/` 开头（`/style.css` 会指到门户根路径而不是你的项目）。
+
+静态项目若有大体积资源，可在同目录放一份预压缩副本 `<文件>.br` / `<文件>.gz`：
+网关会按请求的 `Accept-Encoding` 优先发送它，并自动补 `Content-Encoding` 与
+`Vary` 头，`Content-Type` 仍按原文件名判定（这是 aiohttp `FileResponse` 的内建能力，
+见 `web_fileresponse.py` 的 `ENCODING_EXTENSIONS`，网关侧无需额外代码）。生成用共用脚本：
+
+```bash
+node scripts/precompress.js container/<项目>/dist        # 递归整棵目录树，幂等
+node scripts/precompress.js --force container/<项目>/dist # 忽略新鲜度全部重压
+```
+
+**每次换构建后都要重跑**：旧副本会被网关优先发出，让访客拿到上一版代码
+（脚本会按 mtime 清掉过期副本，孤儿副本也一并清）。压缩率高于 90% 的文件不留副本。
+`container/SWAPSHOT`、`container/PlayCard` 这类 Godot 项目用各自的 `tools/adapt.js`
+（打补丁 + 压缩一起做，39MB 的 wasm 压到 6.6MB），逻辑与本脚本一致。
+
+另注两个「单来源多项目」相关的坑：
+
+1. 门户走 HTTP，非 localhost 访问时 `window.isSecureContext` 为 false，依赖安全上下文的
+   Web API（Gamepad、crypto.subtle、AudioWorklet 等）不可用；Godot 之类会主动检查
+   安全上下文、或在无 AudioWorklet 时直接抛错的运行时需要额外放行。
+2. 所有项目同处 `http://<主机>:38000` 一个来源，**localStorage / IndexedDB 是共享的**，
+   库名或键名相同的两个项目会互相覆盖数据（Godot 的 IDBFS 固定用 `/userfs`），
+   需要各自按 `/apps/<项目>/` 前缀隔离。
+
+两点的具体做法见 `container/SWAPSHOT/README.md` 与其 `tools/adapt.js`。
 
 ### 情形二：自带后端的动态项目
 
@@ -159,9 +208,25 @@ cp -r docs/examples/hello-flask container/我的项目名
    网关退出时整组回收。
 
 `command` 第一个词写 `python3` 时会自动替换为网关所用解释器（即项目
-venv），保证依赖一致；如果项目需要独立环境，写绝对路径即可，例如
+venv），保证依赖一致；写 `node` / `npx` 则解析到平台自带的 `.node/bin`
+（见上文「两套平台自带解释器」）。如果项目需要独立环境，写绝对路径即可，例如
 `["/path/to/其他venv/bin/python", "app.py"]`（新依赖记得补进
 `requirements.txt` 或项目自己的 venv）。
+
+Node 项目的清单长这样（`container/TideLoom`、`container/ZeroHourChoir` 即此类，
+vinext = Next.js on Vite，`vinext start` 是一个纯 Node HTTP 生产服务器，读 `PORT`）：
+
+```json
+{
+    "runtime": {
+        "kind": "proxy",
+        "command": ["node", "node_modules/.bin/vinext", "start"],
+        "cwd": ".",
+        "env": { "NODE_ENV": "production" },
+        "startupTimeoutSec": 30
+    }
+}
+```
 
 ### 情形三：站外项目（纯链接卡片）
 
@@ -213,6 +278,28 @@ venv），保证依赖一致；如果项目需要独立环境，写绝对路径�
 `base`/`publicPath` 设为 `./`（相对路径）即可免改造。
 `container/KnowledgeIndex` 是一个完整的适配样例，可对照参考。
 
+#### Next.js / vinext 项目：前缀落在 Vite `base`，不要用 `basePath`
+
+网关注入的 `WC_APP_PREFIX`（即 `/apps/<目录名>`）对这类项目要**只作用于资源 URL**，
+路由仍留在 `/` 由网关剥前缀转发。`container/TideLoom`、`container/ZeroHourChoir`
+是完整样例，三步：
+
+1. `vite.config.ts`：`base: process.env.WC_APP_PREFIX ? WC_APP_PREFIX + '/' : '/'`；
+2. `package.json` 加一条 `"build:portal": "WC_APP_PREFIX=/apps/<目录名> npm run build
+   && node ../../scripts/precompress.js dist/client"`——前缀是**构建期**常量，
+   忘了带就整站资源 404；`npm test` 会顺带跑一次不带前缀的 `npm run build`，
+   **跑完测试要重新 `npm run build:portal`**；
+3. `<head>` 里手写的 `<link>`、社交卡片的绝对 URL、`app/icon.svg` 生成的图标链接
+   `base` 管不到，用 `process.env.WC_APP_PREFIX` 自己拼（见两个项目的 `app/layout.tsx`）。
+
+**为什么不用 Next 的 `basePath`**：`vinext` 0.0.50 的 Node 生产服务器在 App Router 分支里
+用一条不认 `basePath` 的捷径直出 `/assets/*`（`prod-server.js`:
+`pathname.startsWith("/assets/")`），配了 `basePath` 后 HTML / 字体 / 图标正常
+（它们走 RSC handler）而**所有打包 chunk 404**，很难一眼看出。
+另外 `vinext build` 不生成预压缩副本（Cloudflare 在边缘压），
+但它的静态直出会优先发同名 `.br/.gz`——所以 `build:portal` 里带上 `precompress`，
+600KB 的 three.js chunk 由此降到 ~124KB。
+
 ### 接入自测清单
 
 - [ ] 门户页出现卡片，图标/名称/简介/类型/作者显示正确；
@@ -228,6 +315,8 @@ venv），保证依赖一致；如果项目需要独立环境，写绝对路径�
 | 看网关日志 | `tail -f logs/gateway.log`（后台模式） |
 | 看某项目日志 | `tail -f logs/KnowledgeIndex.log` |
 | 新增项目 | 放入 `container/`，刷新门户页 |
+| 换了静态项目的构建 | 重跑 `node scripts/precompress.js container/<id>/<静态根>`（旧压缩副本会被优先发出） |
+| 换了 Next/vinext 项目的构建 | 在项目里跑 `npm run build:portal`，再 `touch project.json` 让网关重启它 |
 | 修改项目清单 | 保存 `project.json` 后刷新门户页，网关检测到变更会自动重启该项目进程 |
 | 手动重启某项目 | `touch container/<id>/project.json`，刷新门户页 |
 | 下线项目 | 移出 `container/`（或先加 `"hidden": true` 只隐藏卡片），刷新门户页 |

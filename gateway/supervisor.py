@@ -4,7 +4,9 @@
 - stdout/stderr 追加写入 logs/<id>.log；
 - 进程意外退出后按指数退避自动重启（运行满 60 秒后重置退避计数）；
 - 清单中 command 的第一个词若为 python/python3，会替换为运行网关的解释器
-  （即项目 venv），保证 Python 子项目与网关使用同一套依赖环境。
+  （即项目 venv），保证 Python 子项目与网关使用同一套依赖环境；
+- 同理，仓库自带的 Node（config.NODE_BIN_DIR）存在时会前置到子进程 PATH，
+  清单里写 "node" 即用平台钉住的版本，不受系统 node 新旧影响。
 """
 
 import asyncio
@@ -85,6 +87,10 @@ class AppProcess:
             "WC_APP_ID": self.project.id,
             "WC_APP_PREFIX": self.project.prefix,
         }
+        # 平台自带 Node 优先于系统 Node（清单里写 node/npx 即用这一份）
+        if config.NODE_BIN_DIR.is_dir():
+            path = env.get("PATH") or os.defpath
+            env["PATH"] = f"{config.NODE_BIN_DIR}{os.pathsep}{path}"
         cwd = (self.project.dir / rt.cwd).resolve()
 
         config.LOGS_DIR.mkdir(parents=True, exist_ok=True)

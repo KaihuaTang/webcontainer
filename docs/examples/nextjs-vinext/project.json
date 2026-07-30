@@ -1,0 +1,18 @@
+{
+    "name": "项目显示名",
+    "description": "一句话简介，会显示在门户卡片上。",
+    "type": "网页应用",
+    "author": "作者",
+    "tags": ["Next.js"],
+    "icon": "icon.svg",
+    "order": 30,
+    "runtime": {
+        "kind": "proxy",
+        "command": ["node", "node_modules/.bin/vinext", "start"],
+        "cwd": ".",
+        "env": {
+            "NODE_ENV": "production"
+        },
+        "startupTimeoutSec": 30
+    }
+}

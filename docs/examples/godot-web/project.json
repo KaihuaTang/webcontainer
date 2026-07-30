@@ -1,0 +1,13 @@
+{
+    "name": "游戏显示名",
+    "description": "一句话简介，会显示在门户卡片上。",
+    "type": "网页游戏",
+    "author": "作者",
+    "tags": ["Godot"],
+    "icon": "icon.svg",
+    "order": 30,
+    "runtime": {
+        "kind": "static",
+        "root": "public"
+    }
+}

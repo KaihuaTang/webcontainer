@@ -82,6 +82,12 @@ def _build_forward_headers(request: web.Request, project: Project, upstream_port
             continue  # 不信任来路的转发头，统一由网关生成
         headers[key] = value
 
+    # 客户端没声明 Accept-Encoding 时 aiohttp 会替我们补一个默认值，后端据此
+    # 压缩，而网关又是透明转发（auto_decompress=False）——结果把压缩过的响应
+    # 发给一个从没说自己能解压的客户端。显式要求 identity 堵掉这条。
+    if "Accept-Encoding" not in request.headers:
+        headers["Accept-Encoding"] = "identity"
+
     peer = request.remote or ""
     host = request.host or ""
     if ":" in host:

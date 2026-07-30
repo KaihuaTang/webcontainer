@@ -6,6 +6,7 @@
     WC_CONTAINER_DIR  子项目目录，默认 <仓库>/container
     WC_LOGS_DIR       日志目录，默认 <仓库>/logs
     WC_SCAN_INTERVAL  /api/projects 触发重扫描的最小间隔（秒），默认 5
+    WC_NODE_BIN_DIR   子项目可用的 Node 运行时 bin 目录，默认 <仓库>/.node/bin
 """
 
 import os
@@ -20,6 +21,11 @@ SITE_CONFIG_PATH = BASE_DIR / "site.config.json"
 
 GATEWAY_HOST = os.environ.get("WC_HOST", "0.0.0.0")
 GATEWAY_PORT = int(os.environ.get("WC_PORT", "38000"))
+
+# Node 子项目的解释器：与 Python 侧「一律用仓库自带 .venv」同理，
+# 仓库自带一份 Node（.node/bin），存在时会被前置到子进程 PATH，
+# 于是清单里写 "node" / "npx" 就是这个版本，不受系统 node 新旧影响。
+NODE_BIN_DIR = Path(os.environ.get("WC_NODE_BIN_DIR", BASE_DIR / ".node" / "bin"))
 
 # 子项目统一挂载在 /apps/<id>/ 下；其余一级路径保留给门户自身
 APPS_PREFIX = "/apps"

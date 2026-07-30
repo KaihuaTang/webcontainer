@@ -1,6 +1,8 @@
 __pycache__/
 *.pyc
 .venv/
+# 平台自带的 Node 运行时（Node 子项目用；见 scripts/setup-node.sh）
+.node/
 logs/
 *.pid
 *.log
