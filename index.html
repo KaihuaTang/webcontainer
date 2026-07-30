@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>同济大学工程智能研究院 · 独立项目展示平台</title>
+<meta name="description" content="同济大学工程智能研究院（汤凯华课题组）独立项目展示网页">
+<!-- 跳转目标：改地址时同时改下面的 <meta refresh> 与脚本里的 TARGET 两处 -->
+<meta http-equiv="refresh" content="3;url=http://8.130.97.174:919/">
+<style>
+:root{
+    --bg:#F0EEE6;
+    --bg-glow:rgba(217,119,87,.16);
+    --fg:#1F1E1D;
+    --muted:#77736A;
+    --accent:#D97757;
+    --line:rgba(31,30,29,.12);
+    --delay:1600ms;              /* 与脚本里的 DELAY 保持一致 */
+}
+@media (prefers-color-scheme:dark){
+    :root{
+        --bg:#1F1E1D;
+        --bg-glow:rgba(224,138,107,.14);
+        --fg:#F4F2EC;
+        --muted:#9C978C;
+        --accent:#E08A6B;
+        --line:rgba(244,242,236,.14);
+    }
+}
+:root[data-theme="light"]{
+    --bg:#F0EEE6; --bg-glow:rgba(217,119,87,.16); --fg:#1F1E1D;
+    --muted:#77736A; --accent:#D97757; --line:rgba(31,30,29,.12);
+}
+:root[data-theme="dark"]{
+    --bg:#1F1E1D; --bg-glow:rgba(224,138,107,.14); --fg:#F4F2EC;
+    --muted:#9C978C; --accent:#E08A6B; --line:rgba(244,242,236,.14);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+    background:var(--bg);
+    color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB",
+                "Microsoft YaHei","Noto Sans CJK SC","Helvetica Neue",Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:100svh;
+    padding:32px 24px;
+    text-align:center;
+    overflow:hidden;
+}
+/* 背景暖光 */
+body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;
+    background:radial-gradient(58vmax 42vmax at 50% 34%,var(--bg-glow),transparent 68%);
+}
+
+main{position:relative;max-width:34rem;display:flex;flex-direction:column;align-items:center}
+
+/* ── 星芒标记（兼作加载指示）───────────────────────── */
+.mark{width:46px;height:46px;margin-bottom:34px;color:var(--accent);overflow:visible}
+.mark g{transform-origin:32px 32px;animation:spin 9s linear infinite}
+.mark line{stroke:currentColor;stroke-width:4;stroke-linecap:round}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+h1{
+    font-family:"Tiempos Text","Iowan Old Style","Songti SC","Noto Serif CJK SC",
+                "Source Han Serif SC","Georgia",serif;
+    font-weight:400;
+    font-size:clamp(1.55rem,5.4vw,2.4rem);
+    line-height:1.42;
+    letter-spacing:.01em;
+}
+
+/* ── 状态 ──────────────────────────────────────────── */
+.status{
+    margin-top:26px;
+    font-size:.94rem;
+    color:var(--muted);
+    letter-spacing:.14em;
+    text-indent:.14em;                  /* 抵消末字符的字距，保持视觉居中 */
+}
+.status .ell i{font-style:normal;opacity:.25;animation:blink 1.35s ease-in-out infinite}
+.status .ell i:nth-child(2){animation-delay:.18s}
+.status .ell i:nth-child(3){animation-delay:.36s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+
+.bar{margin-top:18px;width:132px;height:2px;border-radius:2px;background:var(--line);overflow:hidden}
+.bar>span{
+    display:block;height:100%;width:100%;border-radius:2px;background:var(--accent);
+    transform:scaleX(0);transform-origin:left;
+    animation:fill var(--delay) cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes fill{to{transform:scaleX(1)}}
+
+.fallback{
+    margin-top:30px;font-size:.82rem;color:var(--muted);line-height:1.7;
+    opacity:0;animation:fade .5s ease 2.6s forwards;   /* 迟迟没跳转时才浮现 */
+}
+.fallback a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;
+            padding-bottom:1px;transition:border-color .18s}
+.fallback a:hover{border-bottom-color:currentColor}
+@keyframes fade{to{opacity:1}}
+
+footer{
+    position:fixed;bottom:26px;left:0;right:0;
+    font-size:.74rem;color:var(--muted);opacity:.72;letter-spacing:.06em;
+}
+
+@media (prefers-reduced-motion:reduce){
+    .mark g,.status .ell i{animation:none}
+    .bar>span{animation-duration:1ms}
+    .fallback{animation-delay:0s;animation-duration:1ms}
+}
+</style>
+</head>
+<body>
+
+<main>
+    <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+        <g>
+            <line x1="32"    y1="25"   x2="32"    y2="8"/>
+            <line x1="35.5"  y1="25.9" x2="40"    y2="18.1"/>
+            <line x1="38.1"  y1="28.5" x2="52.8"  y2="20"/>
+            <line x1="39"    y1="32"   x2="48"    y2="32"/>
+            <line x1="38.1"  y1="35.5" x2="52.8"  y2="44"/>
+            <line x1="35.5"  y1="38.1" x2="40"    y2="45.9"/>
+            <line x1="32"    y1="39"   x2="32"    y2="56"/>
+            <line x1="28.5"  y1="38.1" x2="24"    y2="45.9"/>
+            <line x1="25.9"  y1="35.5" x2="11.2"  y2="44"/>
+            <line x1="25"    y1="32"   x2="16"    y2="32"/>
+            <line x1="25.9"  y1="28.5" x2="11.2"  y2="20"/>
+            <line x1="28.5"  y1="25.9" x2="24"    y2="18.1"/>
+        </g>
+    </svg>
+
+    <h1>用AI点亮灵感，让想象触手可及</h1>
+
+    <p class="status" role="status">登陆中<span class="ell"><i>.</i><i>.</i><i>.</i></span></p>
+    <div class="bar" aria-hidden="true"><span></span></div>
+
+    <p class="fallback">
+        如果浏览器没有自动跳转，<a id="go" href="http://8.130.97.174:919/">点击这里进入展示平台</a>
+    </p>
+</main>
+
+<footer>同济大学工程智能研究院（汤凯华课题组）</footer>
+
+<script>
+(function(){
+    var TARGET = "http://8.130.97.174:919/";
+    var DELAY  = 1600;   // 与 CSS 的 --delay 保持一致
+
+    document.getElementById("go").href = TARGET;
+
+    // 带 ?preview 打开时只看样式、不跳转，方便调设计
+    if (location.search.indexOf("preview") !== -1) return;
+
+    // replace 而非 assign：从目标页按「返回」时不会又被弹回来
+    setTimeout(function(){ location.replace(TARGET); }, DELAY);
+})();
+</script>
+
+</body>
+</html>
