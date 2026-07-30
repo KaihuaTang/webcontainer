@@ -14,6 +14,13 @@ WorkingDirectory=/home/kaihua/projects/webcontainer
 ExecStart=/home/kaihua/projects/webcontainer/.venv/bin/python -m gateway.server
 Restart=always
 RestartSec=3
+# 注意：systemd 启动的服务不继承登录 shell 的环境。若某个子项目需要联网出海
+# （如 StockMonitoring 调用 claude CLI 访问 Anthropic API，本机需经代理，
+# 否则报 403 Request not allowed），要么在此处补 Environment=，要么写进
+# 该项目 project.json 的 runtime.env（推荐，作用域更小且随项目走）。
+# Environment=HTTPS_PROXY=http://127.0.0.1:7892
+# Environment=HTTP_PROXY=http://127.0.0.1:7892
+# Environment=NO_PROXY=localhost,127.0.0.1,::1
 # 网关退出时把整个进程组（含全部子项目）一起回收
 KillMode=control-group
 TimeoutStopSec=30
