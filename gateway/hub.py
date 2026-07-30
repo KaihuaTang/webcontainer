@@ -15,6 +15,7 @@ import aiohttp
 from . import config, registry
 from .registry import KIND_LINK, KIND_STATIC, Project
 from .supervisor import Supervisor
+from .visits import PORTAL_KEY, VisitCounter
 
 log = logging.getLogger("gateway.hub")
 
@@ -23,6 +24,7 @@ class Hub:
     def __init__(self):
         self.projects: dict[str, Project] = {}
         self.supervisor = Supervisor()
+        self.visits = VisitCounter()
         self.session: aiohttp.ClientSession | None = None
         self._last_scan = 0.0
         self._scan_lock = asyncio.Lock()
@@ -38,10 +40,12 @@ class Hub:
             cookie_jar=aiohttp.DummyCookieJar(),
             connector=aiohttp.TCPConnector(limit=0),
         )
+        await self.visits.start()
         await self.refresh(force=True)
         log.info("已加载 %d 个项目：%s", len(self.projects), ", ".join(self.projects) or "（空）")
 
     async def close(self) -> None:
+        await self.visits.close()
         await self.supervisor.shutdown()
         if self.session is not None:
             await self.session.close()
@@ -134,6 +138,7 @@ class Hub:
                 "error": error,
                 "order": project.order,
                 "pinned": project.id in rank,
+                "visits": self.visits.get(project.id),
             })
         items.sort(key=lambda item: (
             rank.get(item["id"], len(rank)),
@@ -141,6 +146,10 @@ class Hub:
             item["name"].lower(),
         ))
         return items
+
+    def portal_visits(self) -> int:
+        """门户首页自身的累计访问次数。"""
+        return self.visits.get(PORTAL_KEY)
 
     def site_config(self) -> dict:
         """site.config.json 与默认值合并，带 mtime 缓存。"""

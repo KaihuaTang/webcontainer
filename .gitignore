@@ -4,6 +4,8 @@ __pycache__/
 # 平台自带的 Node 运行时（Node 子项目用；见 scripts/setup-node.sh）
 .node/
 logs/
+# 网关运行期数据（访问统计计数等），随部署环境走，不入库
+data/
 *.pid
 *.log
 .DS_Store

@@ -29,6 +29,11 @@
         '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.6 1.1 14.9 6.4l-1.1 1.1-1.2-.3-2.4 2.4.4 2.4-1.1 1.1' +
         '-3.2-3.2-3.5 3.5-.9-.9L5.4 9 2.2 5.8l1.1-1.1 2.4.4L8.1 2.7l-.3-1.2z"/></svg>';
 
+    var EYE_SVG =
+        '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3C4.7 3 2 5.6 1 8c1 2.4 3.7 5 7 5' +
+        's6-2.6 7-5c-1-2.4-3.7-5-7-5zm0 8.4A3.4 3.4 0 1 1 8 4.6a3.4 3.4 0 0 1 0 6.8zm0-1.6' +
+        'a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6z"/></svg>';
+
     var STAR_SVG =
         '<svg class="hero-star" viewBox="0 0 40 40" aria-hidden="true" fill="none" ' +
         'stroke="#d97757" stroke-width="3.2" stroke-linecap="round"><path ' +
@@ -48,6 +53,17 @@
             if (!resp.ok) throw new Error(url + " -> HTTP " + resp.status);
             return resp.json();
         });
+    }
+
+    /* 访问次数：过万折成「万」，避免撑破卡片底栏 */
+    function formatVisits(n) {
+        n = Number(n) || 0;
+        if (n < 10000) return String(n);
+        return (n / 10000).toFixed(n < 100000 ? 1 : 0).replace(/\.0$/, "") + "万";
+    }
+
+    function groupDigits(n) {
+        return String(Number(n) || 0).replace(/\B(?=(\d{3})+$)/g, ",");
     }
 
     /* 根据项目 id 生成稳定的暖色系字母头像底色 */
@@ -110,6 +126,8 @@
             desc +
             '<div class="card-foot">' +
                 '<span class="card-author">作者：' + escapeHtml(p.author || "未署名") + "</span>" +
+                '<span class="card-visits" title="累计访问 ' + groupDigits(p.visits) + ' 次">' +
+                    EYE_SVG + formatVisits(p.visits) + "</span>" +
                 '<span class="status-pill ' + statusKey + '"><span class="dot ' + statusKey +
                     '"></span>' + STATUS_TEXT[statusKey] + "</span>" +
             "</div>"
@@ -215,10 +233,17 @@
 
     // ---- 数据加载 ----
 
+    function updatePortalVisits(count) {
+        if (typeof count !== "number") return;
+        document.getElementById("stat-visits").textContent = groupDigits(count);
+        document.getElementById("footer-visits").hidden = false;
+    }
+
     function loadProjects(initial) {
         return fetchJSON("/api/projects").then(function (data) {
             state.projects = data.projects || [];
             updateStats();
+            updatePortalVisits(data.portalVisits);
             if (initial) {
                 toolbar.hidden = state.projects.length === 0;
                 buildChips();

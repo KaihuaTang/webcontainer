@@ -16,7 +16,7 @@
   │  http://<host>:38000
   ▼
 ┌───────────────────────── gateway（aiohttp，单端口 38000）─────────────────────────┐
-│  /                    门户首页（项目卡片、搜索、类型筛选）                          │
+│  /                    门户首页（项目卡片、搜索、类型筛选、访问次数）                 │
 │  /assets/…  /api/…    门户静态资源与数据接口（项目列表、图标、站点文案）             │
 │  /apps/<id>/…         子项目入口，按 container/<id>/project.json 分两类处理：       │
 │      kind=static  →  网关直接托管静态文件                                          │
@@ -37,6 +37,7 @@ webcontainer/
 │   ├── supervisor.py         #   子项目进程托管：启动/健康检查/崩溃重启/回收
 │   ├── proxy.py              #   反向代理（HTTP/WebSocket/流式），前缀与 Cookie 改写
 │   ├── portal.py             #   门户路由与 API
+│   ├── visits.py             #   访问统计：按「一次访问」去重计数并落盘
 │   ├── hub.py                #   运行时状态编排（热扫描、状态查询）
 │   └── server.py             #   入口：python -m gateway.server
 ├── portal/                   # 门户前端（纯静态：HTML/CSS/JS，无构建步骤）
@@ -49,6 +50,7 @@ webcontainer/
 ├── deploy/                   # systemd 服务模板
 ├── site.config.json          # 门户文案（标题、副标题、页脚），改完刷新页面即生效
 ├── requirements.txt
+├── data/                     # 运行期生成：visits.json 访问统计累计值（git 忽略）
 └── logs/                     # 运行期生成：gateway.log 与各项目日志（git 忽略）
 ```
 
@@ -82,6 +84,9 @@ cd /home/kaihua/projects/webcontainer
 | `WC_CONTAINER_DIR` | `<仓库>/container` | 子项目目录 |
 | `WC_LOGS_DIR` | `<仓库>/logs` | 日志目录 |
 | `WC_NODE_BIN_DIR` | `<仓库>/.node/bin` | 给 Node 子项目用的解释器目录（存在即前置到子进程 PATH） |
+| `WC_DATA_DIR` | `<仓库>/data` | 运行期数据目录（访问统计 `visits.json`） |
+| `WC_VISIT_IDLE_TTL` | `1800` | 访问会话空闲多少秒后结束（下次再来算新的一次访问） |
+| `WC_VISIT_MAX_SESSION` | `21600` | 单次访问最长按多少秒计（防一直开着的标签页把计数冻住） |
 
 例：`WC_PORT=39000 ./scripts/start.sh`
 
@@ -321,6 +326,32 @@ vinext = Next.js on Vite，`vinext start` 是一个纯 Node HTTP 生产服务器
 
 `container/` 下的其他内容默认不入库，`pinned.json` 是例外（属平台配置，见 `.gitignore`）。
 
+### 访问统计
+
+门户卡片右下角的 👁 数字是该项目的**累计访问次数**，页脚显示门户首页自身的累计访问次数。
+统计完全在网关内完成（`gateway/visits.py`），不接任何第三方分析服务，也不需要项目做适配。
+
+口径（尽量贴近「一次访问算一次」）：
+
+- **只有页面级请求才计数**：看 `Sec-Fetch-Dest: document`（现代浏览器都会带），
+  拿不到就退化为 `Accept` 含 `text/html`。页面里的 JS/CSS/图片/接口请求一律不计，
+  所以打开一个页面只会 +1，不会被几十个静态请求刷上去；
+- **同一访客的同一次会话只计一次**：访客身份是网关下发的 `wc_vid` Cookie
+  （`Path=/`、`HttpOnly`、`SameSite=Lax`、400 天），所以**从门户点进去**和
+  **直接用 URL 打开项目**走的是同一套去重。会话默认空闲 30 分钟结束、整场最长 6 小时；
+  期间任何请求（含子资源、门户每 30 秒的状态轮询）都会续期——
+  连续玩一个网页游戏、或开着门户不动，都只算一次访问；
+- 门户与每个项目各自独立计数：从门户点进某个项目，是门户 +1、该项目 +1；
+- 明显的爬虫 UA（bot/crawler/spider…）跳过；响应 `>=400`（404、启动中的 503）不计数；
+  `kind=link` 的站外项目按「点击跳转」计一次。
+
+累计值存在 `data/visits.json`（每 30 秒有变更才落盘，临时文件 + 原子替换，随部署环境走、不入库），
+网关重启后累计值不丢，但会话表只在内存里，重启后所有人重新开始一次新会话。
+清空 Cookie / 无痕窗口 / 换浏览器都会被当作新访客——对展示站来说这个精度足够。
+
+想清零或修正某个项目的计数：停掉网关，编辑 `data/visits.json` 的 `counts`
+（`@portal` 是门户首页），再启动；运行中改会被内存里的值覆盖回去。
+
 ### 接入自测清单
 
 - [ ] 门户页出现卡片，图标/名称/简介/类型/作者显示正确；
@@ -342,6 +373,7 @@ vinext = Next.js on Vite，`vinext start` 是一个纯 Node HTTP 生产服务器
 | 手动重启某项目 | `touch container/<id>/project.json`，刷新门户页 |
 | 下线项目 | 移出 `container/`（或先加 `"hidden": true` 只隐藏卡片），刷新门户页 |
 | 置顶常用项目 | 把目录名填进 `container/pinned.json` 的 `pinned` 数组，刷新门户页 |
+| 查/改访问次数 | 看 `data/visits.json`（`@portal` 为门户首页）；要改先停网关，否则会被内存值覆盖 |
 | 重启全部 | `./scripts/stop.sh && ./scripts/start.sh -d` |
 | 修改门户文案 | 编辑 `site.config.json`，刷新页面即生效 |
 | 调整门户样式 | 改 `portal/` 下的 HTML/CSS/JS，无需构建，刷新即生效 |

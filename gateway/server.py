@@ -21,6 +21,7 @@ from . import config, portal
 from .hub import Hub
 from .proxy import handle_app_request, page_not_found
 from .registry import KIND_PROXY
+from .visits import visit_middleware
 
 log = logging.getLogger("gateway.server")
 
@@ -59,7 +60,7 @@ async def apps_dispatch(request: web.Request) -> web.StreamResponse:
 
 
 def build_app() -> web.Application:
-    app = web.Application(client_max_size=1024 ** 3)
+    app = web.Application(client_max_size=1024 ** 3, middlewares=[visit_middleware])
     hub = Hub()
     app["hub"] = hub
 

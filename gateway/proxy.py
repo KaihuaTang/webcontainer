@@ -6,7 +6,8 @@
   （等价于 nginx proxy_redirect），兜底未完全适配前缀的后端；
 - Set-Cookie 的 Path 属性同样补前缀，避免同源下多个项目的 Cookie 互相覆盖；
 - 请求与响应均流式转发（不整体缓冲），支持大文件上传下载与 SSE；
-- 支持 WebSocket 双向转发。
+- 支持 WebSocket 双向转发；
+- 响应 prepare 前补发网关自己的访客 Cookie（wc_vid），供访问统计去重。
 """
 
 import asyncio
@@ -20,6 +21,7 @@ from yarl import URL
 
 from .registry import KIND_LINK, KIND_STATIC, Project
 from .supervisor import STATE_ERROR, STATE_RUNNING, STATE_STARTING, AppProcess
+from .visits import apply_visitor_cookie
 
 log = logging.getLogger("gateway.proxy")
 
@@ -276,6 +278,9 @@ async def handle_app_request(request: web.Request, project: Project,
             if not no_body and "Content-Length" not in response.headers:
                 response.enable_chunked_encoding()
 
+            # 反代响应由这里自己 prepare，中间件事后加不了头：访客 Cookie 得在此下发，
+            # 否则直接用 URL 打开动态项目的访客永远拿不到身份，访问统计会重复计数
+            apply_visitor_cookie(request, response)
             await response.prepare(request)
             if not no_body:
                 async for chunk in upstream.content.iter_chunked(64 * 1024):

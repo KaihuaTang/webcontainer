@@ -49,7 +49,10 @@ async def api_site(request: web.Request) -> web.Response:
 async def api_projects(request: web.Request) -> web.Response:
     hub = _hub(request)
     await hub.refresh()  # 节流的热扫描：新放入 container/ 的项目由此生效
-    return web.json_response({"projects": hub.portal_payload()})
+    return web.json_response({
+        "projects": hub.portal_payload(),
+        "portalVisits": hub.portal_visits(),
+    })
 
 
 async def api_project_icon(request: web.Request) -> web.StreamResponse:

@@ -367,6 +367,19 @@ a.card:hover .card-open, a.card:focus-visible .card-open {
     white-space: nowrap;
 }
 
+/* 累计访问次数：贴在状态胶囊左侧，一起靠右 */
+.card-visits {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-dim);
+}
+
+.card-visits svg { width: 13px; height: 13px; fill: currentColor; opacity: .75; flex: none; }
+
 /* 运行状态胶囊 */
 .status-pill {
     margin-left: auto;
@@ -381,6 +394,9 @@ a.card:hover .card-open, a.card:focus-visible .card-open {
     color: var(--text-dim);
     background: color-mix(in srgb, var(--idle) 8%, transparent);
 }
+
+/* 访问次数已经把空白吃掉了，胶囊紧随其后即可 */
+.card-visits + .status-pill { margin-left: 0; }
 
 .status-pill.running, .status-pill.static {
     color: var(--ok);
@@ -486,6 +502,14 @@ a.card:hover .card-open, a.card:focus-visible .card-open {
 }
 
 .footer-sep { margin: 0 8px; opacity: .6; }
+
+.footer-visits b {
+    color: var(--accent-strong);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.footer-visits[hidden] { display: none; }
 
 /* ---- 无障碍 ---- */
 
