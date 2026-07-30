@@ -7,7 +7,7 @@
     python updater/update.py --macro        # 重选宏观信号清单（组合相关 15 + 热点 10）
 
 环境变量：
-    STOCK_UPDATE_TIME   每日自动更新时刻，可逗号分隔多个，默认 09:00,21:00
+    STOCK_UPDATE_TIME   每日自动更新时刻，可逗号分隔多个，默认 09:00,20:00
     STOCK_CLAUDE_BIN    claude CLI 路径，默认自动查找
     STOCK_CLAUDE_MODEL  分析模型，默认 claude-opus-5
     STOCK_CLAUDE_EFFORT 思考力度，默认 xhigh
@@ -47,12 +47,13 @@ REACTION_LABEL = {"good_news_weak": "利好不涨（偏卖出）",
                   "bad_news_resilient": "利空抗跌（偏买入）"}
 REACTION_FIELD_LIMIT = {"news": 200, "window": 60, "expected": 150, "actual": 200, "reading": 300}
 
-# 默认：美东 09:00 与 21:00，开盘前半小时 + 盘后复盘（zoneinfo 自动处理夏令时）
-DEFAULT_UPDATE_TIMES = "09:00,21:00"
+# 默认：美东 09:00 与 20:00，开盘前半小时 + 盘后复盘（zoneinfo 自动处理夏令时）
+DEFAULT_UPDATE_TIMES = "09:00,20:00"
 DEFAULT_TIMEZONE = "America/New_York"
 TZ_LABELS = {"America/New_York": "美东", "Asia/Shanghai": "北京", "UTC": "UTC"}
 
-# 每周宏观信号重选：默认周一 08:00（早于当日盘前分析，让新清单当天生效）
+# 每周宏观信号重选：默认周一 08:00。必须早于当日盘前分析且留出富余（重选约 13 分钟），
+# 否则调度循环里日更会先跑并同步阻塞十几分钟，重选出的新清单当天用不上。
 DEFAULT_MACRO_WEEKDAY = 1
 DEFAULT_MACRO_TIME = "08:00"
 WEEKDAY_CN = "一二三四五六日"
@@ -250,28 +251,72 @@ def build_prompt(watchlist: list[dict], macro_watch: list[str],
             .replace("{{MACRO_WATCH}}", "、".join(macro_watch)))
 
 
+def iter_brace_blocks(text: str):
+    """按大括号配对扫出文本里每一段完整的 {...}（字符串内的括号与转义不计）。
+
+    比「第一个 { 到最后一个 }」稳：模型在 JSON 前后写了说明文字、
+    或正文里出现零散花括号时，前者会把整段一起吞进去导致解析失败。
+    """
+    depth, start, in_str, esc = 0, -1, False, False
+    for i, ch in enumerate(text):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}" and depth:
+            depth -= 1
+            if depth == 0:
+                yield text[start:i + 1]
+                start = -1
+
+
 def extract_json(text: str) -> dict | None:
-    """从模型输出中提取最外层 JSON 对象。"""
-    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
-    candidates = [fence.group(1)] if fence else []
+    """从模型输出中提取 JSON 对象；多个候选时取能解析且最长的那个。"""
+    candidates = [m.group(1) for m in re.finditer(r"```(?:json)?\s*(.+?)\s*```", text, re.S)]
     start, end = text.find("{"), text.rfind("}")
     if start != -1 and end > start:
         candidates.append(text[start:end + 1])
+    candidates.extend(iter_brace_blocks(text))
+
+    best = None
     for cand in candidates:
         try:
             data = json.loads(cand)
-            if isinstance(data, dict):
-                return data
         except json.JSONDecodeError:
             continue
-    return None
+        # 取最长的那个：正文里可能还夹着示例用的小对象
+        if isinstance(data, dict) and (best is None or len(cand) > len(best[0])):
+            best = (cand, data)
+    return best[1] if best else None
 
 
-def run_claude_analysis(prompt: str) -> tuple[dict | None, str]:
-    claude_bin = resolve_claude_bin()
-    if not claude_bin:
-        return None, "未找到 claude CLI（可用 STOCK_CLAUDE_BIN 指定路径）"
+def save_claude_raw(kind: str, stdout: str, stderr: str, returncode: int, note: str) -> Path:
+    """把本次 Claude 调用的原始输出落盘，供解析失败时排查（只保留最近一次）。"""
+    path = DATA_DIR / f"last_claude_{kind}.txt"
+    header = (f"# {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  退出码={returncode}  "
+              f"stdout={len(stdout)} 字符  stderr={len(stderr)} 字符\n"
+              f"# {note}\n{'=' * 60}\n")
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        path.write_text(header + stdout + ("\n--- stderr ---\n" + stderr if stderr else ""),
+                        encoding="utf-8")
+    except OSError as exc:
+        log.warning("原始输出落盘失败：%s", exc)
+    return path
 
+
+def call_claude_once(claude_bin: str, prompt: str, kind: str,
+                     attempt: int) -> tuple[dict | None, str]:
     timeout = int(os.environ.get("STOCK_CLAUDE_TIMEOUT", "1800"))
     model = os.environ.get("STOCK_CLAUDE_MODEL", DEFAULT_CLAUDE_MODEL)
     effort = os.environ.get("STOCK_CLAUDE_EFFORT", DEFAULT_CLAUDE_EFFORT)
@@ -283,7 +328,8 @@ def run_claude_analysis(prompt: str) -> tuple[dict | None, str]:
     ]
     env = os.environ.copy()
     env["CLAUDE_EFFORT"] = effort
-    log.info("调用 Claude 进行联网分析（model=%s，effort=%s，超时 %ds）…", model, effort, timeout)
+    log.info("调用 Claude 进行联网分析（第 %d 次，model=%s，effort=%s，超时 %ds）…",
+             attempt, model, effort, timeout)
     try:
         proc = subprocess.run(
             cmd, capture_output=True, text=True, timeout=timeout,
@@ -294,14 +340,51 @@ def run_claude_analysis(prompt: str) -> tuple[dict | None, str]:
     except OSError as exc:
         return None, f"claude 启动失败：{exc}"
 
+    stdout, stderr = proc.stdout or "", proc.stderr or ""
+    # 无论成败都留一份原始输出：解析失败时这是唯一的排查线索。
+    # 重试写到单独的文件名，避免第二次把第一次的失败现场覆盖掉。
+    raw_path = save_claude_raw(kind if attempt == 1 else f"{kind}_retry{attempt - 1}",
+                               stdout, stderr, proc.returncode,
+                               f"model={model} effort={effort} attempt={attempt}")
+
     if proc.returncode != 0:
-        tail = (proc.stderr or proc.stdout or "").strip()[-400:]
+        tail = (stderr or stdout).strip()[-400:]
         return None, f"claude 退出码 {proc.returncode}：{tail}"
 
-    data = extract_json(proc.stdout or "")
+    data = extract_json(stdout)
     if data is None:
-        return None, "未能从分析输出中解析出 JSON"
+        tail = stdout.strip()[-200:].replace("\n", " ")
+        return None, (f"未能从分析输出中解析出 JSON（输出 {len(stdout)} 字符，"
+                      f"原文见 {raw_path.relative_to(BASE_DIR)}；结尾：…{tail}）")
     return data, "ok"
+
+
+def run_claude_analysis(prompt: str, kind: str = "analysis") -> tuple[dict | None, str]:
+    """调用 Claude 做联网分析；失败自动重试。
+
+    2026-07-28 出现过一次「跑满 14 分钟、退出码 0、但输出里没有 JSON」的偶发失败，
+    同样的提示词隔一小时重跑即成功。重试只在失败时触发，正常日子不增加任何开销；
+    次数按 STOCK_CLAUDE_ATTEMPTS 配置（默认 2），设 1 可关掉。
+    """
+    claude_bin = resolve_claude_bin()
+    if not claude_bin:
+        return None, "未找到 claude CLI（可用 STOCK_CLAUDE_BIN 指定路径）"
+
+    try:
+        attempts = max(1, int(os.environ.get("STOCK_CLAUDE_ATTEMPTS", "2")))
+    except ValueError:
+        attempts = 2
+
+    reason = ""
+    for attempt in range(1, attempts + 1):
+        data, reason = call_claude_once(claude_bin, prompt, kind, attempt)
+        if data is not None:
+            return data, "ok" if attempt == 1 else f"ok（第 {attempt} 次尝试成功）"
+        if attempt < attempts:
+            log.warning("分析失败，将重试：%s", reason)
+    if attempts > 1:
+        reason = f"{reason}；已重试 {attempts - 1} 次仍失败"
+    return None, reason
 
 
 def normalize_analysis(data: dict, watchlist: list[dict]) -> dict:
@@ -522,7 +605,7 @@ def run_macro_update() -> dict:
               .replace("{{CURRENT}}", "、".join(config.get("macro_watch", []))))
 
     log.info("重选宏观信号清单（组合 %d 支）…", len(watchlist))
-    data, reason = run_claude_analysis(prompt)
+    data, reason = run_claude_analysis(prompt, kind="macro")
 
     ok, message = False, reason
     if data is not None:

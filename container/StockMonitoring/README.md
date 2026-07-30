@@ -14,7 +14,7 @@
 ## 工作方式
 
 ```
-每天两次：美东 09:00（开盘前半小时）与 21:00（盘后复盘）
+每天两次：美东 09:00（开盘前半小时）与 20:00（盘后复盘）
 （默认值，改 stocks.json 的 schedule 段；夏令时自动处理）
   └─ updater/update.py（仅定时触发，页面不提供手动刷新，防恶意刷新）
        ├─ Yahoo Finance 抓取各标的近一年日线（免 key）
@@ -48,12 +48,12 @@
 
 - **监控清单 / 更新时刻 / 宏观信号**：全部集中在 `stocks.json` 一个文件，
   网页管理页只读展示，**不支持在线修改**，需在服务器上直接编辑：
-  - `schedule`：`{"update_times": ["09:00", "21:00"], "timezone": "America/New_York"}`，
+  - `schedule`：`{"update_times": ["09:00", "20:00"], "timezone": "America/New_York"}`，
     每天可配多个更新时刻，保存后 30 秒内生效，无需重启；
   - `stocks`：标的数组（symbol / yahoo / name / market / focus），
     增删自下一次定时分析起生效，新标的的行情曲线届时自动抓取；
   - `macro_watch`：AI 每日必查的宏观 / 行业信号清单。
-    **每周自动重选**（默认周一美东 08:00，`schedule.macro_update` 可调）：
+    **每周自动重选**（默认周一美东 08:00，需早于当日盘前分析，`schedule.macro_update` 可调）：
     由 Claude 联网挑选与组合整体最相关的 15 条 + 时事热点 10 条并写回此数组。
 
   分析提示词中的标的清单与输出示例会随清单**自动生成**，无需改模板。
@@ -61,10 +61,16 @@
   `STOCK_SMTP_HOST` `STOCK_SMTP_PORT`(默认465) `STOCK_SMTP_USER`
   `STOCK_SMTP_PASS` `STOCK_SMTP_FROM` `STOCK_SMTP_TO`(逗号分隔)。
   可写入 `project.json` 的 `runtime.env`（注意勿将密码提交到公开仓库）。
+- **联网出海**：本机访问 Anthropic API 必须经本地代理（`127.0.0.1:7892`），
+  否则 `claude` 直接报 `403 Request not allowed`、分析必然失败。代理变量已固化在
+  `project.json` 的 `runtime.env` 里，**不再依赖网关是从哪个 shell 启动的**——
+  这点很重要：systemd 启动的服务不继承登录环境，早先靠继承能跑通纯属侥幸，
+  一旦改用 `systemctl` 开机自启就会每次 403。换了代理端口记得同步改这里。
 - **分析引擎**：需要本机可用的 `claude` CLI（已登录）。
   默认固定 `claude-opus-5` + `xhigh` 思考力度，不跟随本机全局配置；
   可用 `STOCK_CLAUDE_MODEL` / `STOCK_CLAUDE_EFFORT` 覆盖，
-  `STOCK_CLAUDE_BIN` 指定路径，`STOCK_CLAUDE_TIMEOUT` 调整超时（默认 1800s）。
+  `STOCK_CLAUDE_BIN` 指定路径，`STOCK_CLAUDE_TIMEOUT` 调整超时（默认 1800s），
+  `STOCK_CLAUDE_ATTEMPTS` 调整失败重试次数（默认 2，设 1 关闭重试）。
 
 ## 手动运维（服务器侧）
 
@@ -76,6 +82,26 @@ python3 updater/update.py --prices-only   # 仅刷新行情曲线（秒级）
 python3 updater/update.py                 # 完整更新：行情 + AI 联网分析（分钟级）
 python3 updater/update.py --macro         # 重选宏观信号清单（组合相关 15 + 热点 10）
 ```
+
+注意：手动完整更新写入的槽位按**当时的美东时钟**判定（<09:30 盘前 / <16:00 盘中 / 其余盘后），
+所以补跑一次失败的盘前分析，很可能落到 `intraday` 槽而不是覆盖原来的 `premarket` 文件，
+时间轴上会同时出现两条。要真正替换，补跑后手工删掉 `data/daily/<日期>_<原槽位>.json`。
+
+## 分析失败了怎么查
+
+首页出现「今日 AI 分析未完成：…」时：
+
+1. 每次 Claude 调用的**原始输出**都落在 `data/last_claude_analysis.txt`
+   （自动重试的那次在 `data/last_claude_analysis_retry1.txt`，宏观任务是 `last_claude_macro*.txt`），
+   文件头记录了时间、退出码、模型与输出字符数——先看这个，它是唯一的现场；
+2. `data/status.json` 的 `message` 里带了输出长度与结尾片段；
+3. 日志见 `logs/StockMonitoring.log`。
+
+分析失败**不会**污染时间轴的信号打点（没有 buy/sell/trim 就不写事件），
+只是当日该槽位的文件被写成空壳、首页标「无 AI 分析」。
+
+已知偶发：2026-07-28 盘前出现过一次「跑满 14 分钟、退出码 0、但输出里没有 JSON」，
+同样的提示词一小时后重跑即成功，未能复现。现已加自动重试（默认 2 次）兜住这类抖动。
 
 数据均为普通 JSON 文件（`data/`），可直接查看、备份或删除重建；
 删除某份 `data/daily/<日期>_<时段>.json` 即从时间轴移除对应卡片；
