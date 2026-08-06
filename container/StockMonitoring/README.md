@@ -14,7 +14,7 @@
 ## 工作方式
 
 ```
-每天两次：美东 09:00（开盘前半小时）与 20:00（盘后复盘）
+每天两次：美东 08:30（盘前）与 20:30（盘后复盘）
 （默认值，改 stocks.json 的 schedule 段；夏令时自动处理）
   └─ updater/update.py（仅定时触发，页面不提供手动刷新，防恶意刷新）
        ├─ Yahoo Finance 抓取各标的近一年日线（免 key）
@@ -48,7 +48,7 @@
 
 - **监控清单 / 更新时刻 / 宏观信号**：全部集中在 `stocks.json` 一个文件，
   网页管理页只读展示，**不支持在线修改**，需在服务器上直接编辑：
-  - `schedule`：`{"update_times": ["09:00", "20:00"], "timezone": "America/New_York"}`，
+  - `schedule`：`{"update_times": ["08:30", "20:30"], "timezone": "America/New_York"}`，
     每天可配多个更新时刻，保存后 30 秒内生效，无需重启；
   - `stocks`：标的数组（symbol / yahoo / name / market / focus），
     增删自下一次定时分析起生效，新标的的行情曲线届时自动抓取；
@@ -61,11 +61,18 @@
   `STOCK_SMTP_HOST` `STOCK_SMTP_PORT`(默认465) `STOCK_SMTP_USER`
   `STOCK_SMTP_PASS` `STOCK_SMTP_FROM` `STOCK_SMTP_TO`(逗号分隔)。
   可写入 `project.json` 的 `runtime.env`（注意勿将密码提交到公开仓库）。
-- **联网出海**：本机访问 Anthropic API 必须经本地代理（`127.0.0.1:7892`），
-  否则 `claude` 直接报 `403 Request not allowed`、分析必然失败。代理变量已固化在
-  `project.json` 的 `runtime.env` 里，**不再依赖网关是从哪个 shell 启动的**——
-  这点很重要：systemd 启动的服务不继承登录环境，早先靠继承能跑通纯属侥幸，
-  一旦改用 `systemctl` 开机自启就会每次 403。换了代理端口记得同步改这里。
+- **联网出海**：本机访问 Anthropic API 与 Yahoo 行情都必须经本地代理（当前
+  `127.0.0.1:7895`），否则 `claude` 报 `403 Request not allowed`、行情抓取报 403。
+  代理变量固化在 `project.json` 的 `runtime.env` 里，**不依赖网关是从哪个 shell
+  启动的**——systemd 启动的服务不继承登录环境，早先靠继承能跑通纯属侥幸。
+  - **端口自动探测**：代理端口会跟着代理软件配置漂移（mihomo 的 mixed-port 就从
+    7892 换到过 7895），写死的端口一失效就是 `ConnectionRefused`，且只在定时任务里
+    炸、往往隔半天才发现。因此每次运行前会实测一遍：环境变量里的端口能用就用，
+    不能用再按候选端口逐个探（CONNECT 握手判定，几十毫秒），探到就当场改用并
+    打一条 WARNING 日志。`STOCK_PROXY` 可强制指定（设 `none` 表示直连、不探测），
+    `STOCK_PROXY_PORTS` 可改候选端口（默认 `7895,7890,7891,7892,7893,7897`）。
+    排查用 `python3 updater/update.py --check-proxy`，只打印探测结果不跑分析。
+    自动探测是兜底，端口真变了仍建议同步改 `runtime.env`，省掉每次探测。
 - **分析引擎**：需要本机可用的 `claude` CLI（已登录）。
   默认固定 `claude-opus-5` + `xhigh` 思考力度，不跟随本机全局配置；
   可用 `STOCK_CLAUDE_MODEL` / `STOCK_CLAUDE_EFFORT` 覆盖，
@@ -78,6 +85,7 @@
 
 ```bash
 cd container/StockMonitoring
+python3 updater/update.py --check-proxy   # 只探测本机代理端口（排查「连不上 API」用）
 python3 updater/update.py --prices-only   # 仅刷新行情曲线（秒级）
 python3 updater/update.py                 # 完整更新：行情 + AI 联网分析（分钟级）
 python3 updater/update.py --macro         # 重选宏观信号清单（组合相关 15 + 热点 10）

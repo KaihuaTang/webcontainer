@@ -5,9 +5,13 @@
     python updater/update.py                # 完整更新（行情 + AI 分析）
     python updater/update.py --prices-only  # 仅刷新行情曲线
     python updater/update.py --macro        # 重选宏观信号清单（组合相关 15 + 热点 10）
+    python updater/update.py --check-proxy  # 只打印本次探测到的本机代理，不跑任何分析
 
 环境变量：
-    STOCK_UPDATE_TIME   每日自动更新时刻，可逗号分隔多个，默认 09:00,20:00
+    STOCK_UPDATE_TIME   每日自动更新时刻，可逗号分隔多个，默认 08:30,20:30
+    STOCK_PROXY         强制指定本机代理（如 http://127.0.0.1:7895）；设 none 表示直连，
+                        两者都不设时按下面的端口列表自动探测
+    STOCK_PROXY_PORTS   自动探测的候选端口，逗号分隔，默认 7895,7890,7891,7892,7893,7897
     STOCK_CLAUDE_BIN    claude CLI 路径，默认自动查找
     STOCK_CLAUDE_MODEL  分析模型，默认 claude-opus-5
     STOCK_CLAUDE_EFFORT 思考力度，默认 xhigh
@@ -21,8 +25,10 @@ import os
 import re
 import shutil
 import smtplib
+import socket
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from datetime import datetime
 from email.header import Header
@@ -47,8 +53,8 @@ REACTION_LABEL = {"good_news_weak": "利好不涨（偏卖出）",
                   "bad_news_resilient": "利空抗跌（偏买入）"}
 REACTION_FIELD_LIMIT = {"news": 200, "window": 60, "expected": 150, "actual": 200, "reading": 300}
 
-# 默认：美东 09:00 与 20:00，开盘前半小时 + 盘后复盘（zoneinfo 自动处理夏令时）
-DEFAULT_UPDATE_TIMES = "09:00,20:00"
+# 默认：美东 08:30 与 20:30，盘前 + 盘后复盘（zoneinfo 自动处理夏令时）
+DEFAULT_UPDATE_TIMES = "08:30,20:30"
 DEFAULT_TIMEZONE = "America/New_York"
 TZ_LABELS = {"America/New_York": "美东", "Asia/Shanghai": "北京", "UTC": "UTC"}
 
@@ -218,6 +224,99 @@ def refresh_prices(watchlist: list[dict]) -> dict[str, dict]:
         else:
             quotes[sym] = {"price": None, "change_pct": None, "currency": "USD", "price_date": None}
     return quotes
+
+
+# ---- 本机代理（端口会漂移，每次运行实测一遍） ---------------------------
+
+# 出海请求（Anthropic API、Yahoo 行情）都得经本机代理，而代理端口会跟着代理软件
+# 的配置变——mihomo 的 mixed-port 就从 7892 换到过 7895。端口写死在 project.json
+# 的 runtime.env 里，一变就是 ConnectionRefused，且只在定时任务里炸、往往隔半天
+# 才发现。所以每次运行前实测一遍：环境变量里那个能用就用，不能用再探候选端口。
+# 顺序即优先级：先试本机 mihomo 当前的 mixed-port，再试常见的几个
+DEFAULT_PROXY_PORTS = "7895,7890,7891,7892,7893,7897"
+PROXY_PROBE_TARGET = "api.anthropic.com:443"
+PROXY_PROBE_TIMEOUT = 2.0
+PROXY_ENV_VARS = ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy")
+
+
+def proxy_alive(url: str) -> bool:
+    """向候选代理发一个 CONNECT api.anthropic.com:443，看它是否回 200。
+
+    只握手、不发真实请求，几十毫秒出结果；比单纯 TCP 连通准——端口上换成别的
+    服务时 connect 一样成功，只有 CONNECT 能认出对面是不是 HTTP 代理。
+    """
+    try:
+        parts = urllib.parse.urlsplit(url if "://" in url else f"http://{url}")
+        host, port = parts.hostname, parts.port
+    except ValueError:
+        return False
+    if not host or not port:
+        return False
+    probe = f"CONNECT {PROXY_PROBE_TARGET} HTTP/1.1\r\nHost: {PROXY_PROBE_TARGET}\r\n\r\n"
+    try:
+        with socket.create_connection((host, port), PROXY_PROBE_TIMEOUT) as sock:
+            sock.settimeout(PROXY_PROBE_TIMEOUT)
+            sock.sendall(probe.encode())
+            status = sock.recv(64).split(b"\r\n", 1)[0]
+    except OSError:
+        return False
+    return status.startswith(b"HTTP/1.") and b" 200" in status
+
+
+def detect_proxy() -> str | None:
+    """挑一个实测可用的本机 HTTP 代理返回；都不通返回 None。
+
+    顺序：STOCK_PROXY 显式指定 > 现有 *_PROXY 环境变量 > 候选端口逐个探。
+    STOCK_PROXY=none 表示这台机器直连，不探测也不改环境变量。
+    """
+    forced = os.environ.get("STOCK_PROXY")
+    if forced is not None:
+        forced = forced.strip()
+        return None if forced.lower() in ("", "none", "off", "direct") else forced
+
+    candidates = []
+    for var in PROXY_ENV_VARS:
+        val = (os.environ.get(var) or "").strip()
+        if val and val not in candidates:
+            candidates.append(val)
+    for port in os.environ.get("STOCK_PROXY_PORTS", DEFAULT_PROXY_PORTS).split(","):
+        port = port.strip()
+        url = f"http://127.0.0.1:{port}"
+        if port.isdigit() and url not in candidates:
+            candidates.append(url)
+
+    for url in candidates:
+        if proxy_alive(url):
+            return url
+    return None
+
+
+def apply_proxy() -> str | None:
+    """把探测结果写回 os.environ：行情抓取（urllib）与 claude 子进程都吃这一套。"""
+    configured = (os.environ.get("HTTPS_PROXY") or "").strip()
+    proxy = detect_proxy()
+    if proxy is None:
+        log.warning("未探测到可用的本机代理（试过 %s），出海请求可能失败",
+                    configured or "候选端口 " + os.environ.get("STOCK_PROXY_PORTS", DEFAULT_PROXY_PORTS))
+        return None
+    if proxy != configured:
+        log.warning("本机代理改用 %s（原 %s 不通；改 project.json 的 runtime.env 可免去这次探测）",
+                    proxy, configured or "未设置")
+    else:
+        log.info("本机代理 %s 可用", proxy)
+    for var in PROXY_ENV_VARS:
+        os.environ[var] = proxy
+    # ALL_PROXY 可能是 socks5h://（mihomo 的 mixed-port 两种协议同一个端口），
+    # 只跟着换 host:port，别把 scheme 也改掉。
+    netloc = proxy.split("://", 1)[-1].strip("/")
+    for var in ("ALL_PROXY", "all_proxy"):
+        old = os.environ.get(var)
+        if old:
+            scheme = old.split("://", 1)[0] if "://" in old else "http"
+            os.environ[var] = f"{scheme}://{netloc}"
+    os.environ.setdefault("NO_PROXY", "localhost,127.0.0.1,::1")
+    os.environ.setdefault("no_proxy", "localhost,127.0.0.1,::1")
+    return proxy
 
 
 # ---- Claude 联网分析 ----------------------------------------------------
@@ -523,6 +622,7 @@ def send_alert_email(daily: dict) -> str:
 
 def run_update(prices_only: bool = False) -> dict:
     logging.basicConfig(level=logging.INFO)
+    apply_proxy()
     started = datetime.now()
     today = started.strftime("%Y-%m-%d")
     config = json.loads((BASE_DIR / "stocks.json").read_text(encoding="utf-8"))
@@ -592,6 +692,7 @@ def run_update(prices_only: bool = False) -> dict:
 def run_macro_update() -> dict:
     """联网重选 macro_watch：组合最相关 15 条 + 时事热点 10 条，写回 stocks.json。"""
     logging.basicConfig(level=logging.INFO)
+    apply_proxy()
     started = datetime.now()
     config = json.loads((BASE_DIR / "stocks.json").read_text(encoding="utf-8"))
     watchlist = config["stocks"]
@@ -635,7 +736,10 @@ def run_macro_update() -> dict:
 
 
 if __name__ == "__main__":
-    if "--macro" in sys.argv:
+    if "--check-proxy" in sys.argv:
+        logging.basicConfig(level=logging.INFO)
+        print(detect_proxy() or "未探测到可用代理")
+    elif "--macro" in sys.argv:
         run_macro_update()
     else:
         run_update(prices_only="--prices-only" in sys.argv)

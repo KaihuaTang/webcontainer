@@ -172,7 +172,7 @@
         if (!days.length) {
             timeline.innerHTML =
                 '<div class="empty">还没有任何监控数据。<br>系统每天 <b>' +
-                (document.getElementById("sched-time").textContent || "美东 09:00 / 20:00") +
+                (document.getElementById("sched-time").textContent || "美东 08:30 / 20:30") +
                 "</b> 自动联网分析，请稍后回来查看。</div>";
             timeline.classList.remove("timeline");
             return;
