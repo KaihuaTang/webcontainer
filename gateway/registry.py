@@ -12,6 +12,7 @@ import logging
 import re
 import shlex
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 from . import config
@@ -19,6 +20,9 @@ from . import config
 log = logging.getLogger("gateway.registry")
 
 ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+
+# addedAt 的宽松解析：先试 ISO 8601，再试这几种手写常见写法（月/日不补零也认）
+_DATE_FORMATS = ("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S")
 
 KIND_PROXY = "proxy"    # 自带后端服务，由网关托管进程并反向代理
 KIND_STATIC = "static"  # 纯静态站点，由网关直接提供文件
@@ -53,7 +57,8 @@ class Project:
     author: str = ""
     tags: list[str] = field(default_factory=list)
     icon: str | None = None       # 图标文件，相对项目目录
-    order: int = 100              # 门户排序，小者靠前
+    order: int = 100              # 同一上架时间内的次序，小者靠前
+    added_at: float = 0.0         # 上架时间（epoch 秒）；门户非置顶项按它倒序排
     hidden: bool = False          # 隐藏卡片但仍可通过 URL 访问
     runtime: Runtime = field(default_factory=Runtime)
     manifest_mtime: float = 0.0
@@ -68,6 +73,40 @@ class Project:
         if self.runtime.kind == KIND_LINK and self.runtime.url:
             return self.runtime.url
         return f"{self.prefix}/"
+
+
+def _parse_added_at(raw_value, fallback: float) -> float:
+    """解析清单里的 addedAt（项目上架时间），返回 epoch 秒。
+
+    接受 ISO 8601（`2026-07-30`、`2026-07-30T11:36:48+08:00`、结尾 Z）以及
+    `2026/7/30`、`2026-7-30 11:36` 这类手写形式；不带时区的按本机时区理解。
+    缺省时退回 project.json 的 mtime——对没显式声明的老项目，「清单落地的时刻」
+    是最接近上架时间的可得近似。
+    """
+    if raw_value is None:
+        return fallback
+    text = str(raw_value).strip()
+    if not text:
+        return fallback
+
+    moment = None
+    try:
+        moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        for fmt in _DATE_FORMATS:
+            try:
+                moment = datetime.strptime(text, fmt)
+                break
+            except ValueError:
+                continue
+    if moment is None:
+        raise ValueError(
+            f"addedAt 不是能识别的日期：{raw_value!r}"
+            "（写成 2026-07-30 或 2026-07-30T11:36:48+08:00 这样）"
+        )
+    if moment.tzinfo is None:
+        moment = moment.astimezone()  # 不带时区的按本机时区
+    return moment.timestamp()
 
 
 def _parse_runtime(raw: dict, project_dir: Path) -> Runtime:
@@ -145,6 +184,7 @@ def _load_project(project_dir: Path) -> Project:
         if isinstance(tags, list):
             project.tags = [str(t) for t in tags][:8]
         project.order = int(raw.get("order", 100))
+        project.added_at = _parse_added_at(raw.get("addedAt"), project.manifest_mtime)
         project.hidden = bool(raw.get("hidden", False))
 
         icon = raw.get("icon")

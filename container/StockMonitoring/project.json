@@ -6,6 +6,7 @@
     "tags": ["股票", "AI 分析", "买卖信号", "定时任务"],
     "icon": "static/icon.svg",
     "order": 15,
+    "addedAt": "2026-07-22",
     "runtime": {
         "kind": "proxy",
         "command": ["python3", "app.py"],

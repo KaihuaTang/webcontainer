@@ -4,6 +4,7 @@
 :root {
     --accent: #d97757;          /* Claude 陶土橙（填充/高亮） */
     --accent-strong: #c15f3c;   /* 深一档，用于链接与悬停 */
+    --surprise: #c08427;        /* 暖金，专给「每日惊喜」，与常规置顶区分 */
     --bg: #f0eee6;              /* 暖米色页面底 */
     --card-bg: #faf9f5;         /* 卡片暖白 */
     --text: #1f1e1b;            /* 暖近黑 */
@@ -23,6 +24,7 @@
 @media (prefers-color-scheme: dark) {
     :root {
         --accent-strong: #e08b6d;
+        --surprise: #d9a441;
         --bg: #262624;
         --card-bg: #30302e;
         --text: #eceae4;
@@ -338,6 +340,41 @@ a.card:hover .card-open, a.card:focus-visible .card-open {
 }
 
 .card-pin svg { width: 11px; height: 11px; fill: currentColor; flex: none; }
+
+/* 每日惊喜：每天换人的临时置顶。用金调与常规置顶的陶土橙区分开 */
+.card.surprise {
+    border-color: color-mix(in srgb, var(--surprise) 52%, var(--line));
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--surprise) 11%, transparent), transparent 48%),
+        var(--card-bg);
+}
+
+.card-surprise {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    vertical-align: top;
+    margin: 4px 0 0 6px;
+    font-size: 12px;
+    color: #fff;
+    background: linear-gradient(115deg, var(--accent), var(--surprise) 82%);
+    border: 1px solid color-mix(in srgb, var(--surprise) 65%, var(--accent));
+    border-radius: 6px;
+    padding: 1px 8px 1px 6px;
+}
+
+.card-surprise svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+    flex: none;
+    animation: twinkle 2.8s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 1; transform: scale(1) rotate(0); }
+    50%      { opacity: .62; transform: scale(.84) rotate(-14deg); }
+}
 
 .card-desc {
     margin: 0;

@@ -1,5 +1,8 @@
 {
-    "_说明": "置顶清单：列出的项目排在门户首页最前，数组顺序即卡片顺序。id 用 container/ 下的目录名；写错或已下线的 id 会被忽略，并在 logs/gateway.log 留一条警告。改完刷新门户页即生效，无需重启网关。下划线开头的键仅作注释，网关只读 pinned。",
+    "_说明": "置顶清单：列出的项目排在门户首页最前，数组顺序即卡片顺序。id 用 container/ 下的目录名；写错或已下线的 id 会被忽略，并在 logs/gateway.log 留一条警告。改完刷新门户页即生效，无需重启网关。下划线开头的键仅作注释。",
+    "_排序说明": "没被置顶的项目按 project.json 里的 addedAt（上架时间）倒序排，越新越靠前；同一时间的由 order 决定。addedAt 不写就退回 project.json 的 mtime。",
+    "_每日惊喜": "dailySurprise 为 true 时，每天从「非置顶且配置无误」的项目里随机挑一个，排在所有置顶之前并带上惊喜徽标。同一天内所有访客看到的是同一个，跨零点自动换人。设为 false 即关闭。",
     "_示例": ["StockMonitoring", "KnowledgeIndex"],
-    "pinned": ["KnowledgeIndex", "StockMonitoring"]
+    "pinned": ["StockMonitoring", "course_aigc"],
+    "dailySurprise": true
 }

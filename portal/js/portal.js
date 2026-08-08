@@ -29,6 +29,10 @@
         '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.6 1.1 14.9 6.4l-1.1 1.1-1.2-.3-2.4 2.4.4 2.4-1.1 1.1' +
         '-3.2-3.2-3.5 3.5-.9-.9L5.4 9 2.2 5.8l1.1-1.1 2.4.4L8.1 2.7l-.3-1.2z"/></svg>';
 
+    var SPARKLE_SVG =
+        '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .9l1.5 4.1 4.1 1.5-4.1 1.5L8 12.1 ' +
+        '6.5 8 2.4 6.5 6.5 5zM13.1 10.2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/></svg>';
+
     var EYE_SVG =
         '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3C4.7 3 2 5.6 1 8c1 2.4 3.7 5 7 5' +
         's6-2.6 7-5c-1-2.4-3.7-5-7-5zm0 8.4A3.4 3.4 0 1 1 8 4.6a3.4 3.4 0 0 1 0 6.8zm0-1.6' +
@@ -119,7 +123,10 @@
                 '<div class="card-title-wrap">' +
                     '<h2 class="card-name">' + escapeHtml(p.name) + "</h2>" +
                     '<span class="card-type">' + escapeHtml(p.type || "未分类") + "</span>" +
-                    (p.pinned ? '<span class="card-pin">' + PIN_SVG + "置顶</span>" : "") +
+                    (p.surprise
+                        ? '<span class="card-surprise" title="每天换一个，明天再来看看">' +
+                              SPARKLE_SVG + "每日惊喜</span>"
+                        : p.pinned ? '<span class="card-pin">' + PIN_SVG + "置顶</span>" : "") +
                 "</div>" +
                 (p.error ? "" : '<span class="card-open" aria-hidden="true">↗</span>') +
             "</div>" +
@@ -162,7 +169,8 @@
         list.forEach(function (p, idx) {
             var clickable = !p.error;
             var el = document.createElement(clickable ? "a" : "div");
-            el.className = "card" + (clickable ? "" : " disabled") + (p.pinned ? " pinned" : "");
+            el.className = "card" + (clickable ? "" : " disabled") +
+                (p.surprise ? " surprise" : p.pinned ? " pinned" : "");
             el.style.animationDelay = Math.min(idx * 45, 360) + "ms";
             if (clickable) {
                 el.href = p.url;

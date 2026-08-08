@@ -44,7 +44,7 @@ webcontainer/
 ├── container/                # ★ 各独立项目，一个子目录一个项目
 │   ├── KnowledgeIndex/       #   示例：格物知新（Flask）
 │   │   └── project.json      #   项目清单（卡片信息 + 运行方式）
-│   └── pinned.json           #   置顶清单：哪些项目排在门户最前，刷新页面即生效
+│   └── pinned.json           #   置顶清单 + 每日惊喜开关，刷新页面即生效
 ├── docs/examples/            # 新项目接入模板（静态版 / Flask 版 / Godot 版 / 前端前缀补丁）
 ├── scripts/                  # setup.sh / setup-node.sh / start.sh / stop.sh / precompress.js
 ├── deploy/                   # systemd 服务模板
@@ -132,7 +132,8 @@ sudo systemctl enable --now webcontainer
     "author": "作者/团队",
     "tags": ["标签1", "标签2"],        // 可选，参与门户搜索
     "icon": "public/icon.png",        // 可选，相对本项目目录；缺省显示首字头像
-    "order": 100,                     // 可选，门户排序，小者靠前
+    "addedAt": "2026-07-30",          // 可选，上架时间；门户非置顶项按它倒序排（新的在上）
+    "order": 100,                     // 可选，同一上架时间内的次序，小者靠前
     "hidden": false,                  // 可选，true 时不出卡片但 URL 仍可访问
 
     "runtime": {
@@ -307,23 +308,43 @@ vinext = Next.js on Vite，`vinext start` 是一个纯 Node HTTP 生产服务器
 但它的静态直出会优先发同名 `.br/.gz`——所以 `build:portal` 里带上 `precompress`，
 600KB 的 three.js chunk 由此降到 ~124KB。
 
-### 置顶常用项目
+### 卡片排序：每日惊喜 → 置顶 → 上架时间倒序
 
-门户卡片默认按 `project.json` 里的 `order`（小者靠前）、同 order 再按名称排列。
-若想把几个常用项目固定在最前，编辑 `container/pinned.json`：
+门户首页从上到下是三段：
+
+1. **每日惊喜**（每天换一个，见下）；
+2. **置顶**，按 `container/pinned.json` 里 `pinned` 数组的书写顺序；
+3. **其余项目**，按 `project.json` 的 `addedAt`（上架时间）**倒序**——越新的越靠前；
+   同一上架时间内由 `order` 决定，再同则按名称。
+
+`addedAt` 接受 `2026-07-30`、`2026-07-30T11:36:48+08:00`（结尾 `Z` 也行），
+`2026/7/30`、`2026-7-30 11:36` 这类手写形式同样认；不带时区的按服务器本机时区理解。
+**不写这个字段就退回 `project.json` 的 mtime**——所以老项目不填也能排得大致对，
+但只要改过一次清单它就会跳到前面去，长期在线的项目建议显式写上。
+写成认不出的日期会让该项目在门户上标成「配置有误」（与 `order` 写错的处理一致）。
 
 ```json
 {
-    "pinned": ["StockMonitoring", "KnowledgeIndex"]
+    "pinned": ["StockMonitoring", "KnowledgeIndex"],
+    "dailySurprise": true
 }
 ```
 
-- id 用 `container/` 下的**目录名**，数组顺序就是卡片顺序，未列出的项目仍按 `order` 排在后面；
+- id 用 `container/` 下的**目录名**，数组顺序就是卡片顺序；
 - 置顶卡片会带一枚橙色「置顶」徽标，描边也会加深；
 - 改完**刷新门户页即生效**，不用重启网关（按文件 mtime 判断是否重读）；
 - 文件缺失、写成非法 JSON、或列了不存在的 id 都只当作「无置顶/忽略该条」处理，
   并在 `logs/gateway.log` 留一条 warning，不会让门户挂掉；
-- 下划线开头的键（`_说明`、`_示例`）仅作注释，网关只读 `pinned` 一个字段。
+- 下划线开头的键（`_说明`、`_示例`）仅作注释。
+
+**每日惊喜**（`dailySurprise`，缺省开启）：每天从「非置顶且配置无误」的项目里挑一个，
+排在所有置顶之前，带一枚金色「每日惊喜」徽标。设成 `false` 即关闭。
+
+它不是每天独立掷骰子——那样约每 N 天就会连着两天挑中同一个。实现是把候选整体洗牌
+成一轮（N 天走完一轮，轮内人人恰好轮到一次），换轮时首尾撞车就对调，因此
+**连续两天不会重样、每个项目获得的曝光次数长期均等**（`gateway/hub.py` 的
+`daily_surprise_id`）。全程由日期推导，不落盘、不需要定时任务：同一天内所有访客
+看到的是同一个，跨零点自动换人。接入或下线项目会让整轮排布重算，当天结果可能变。
 
 `container/` 下的其他内容默认不入库，`pinned.json` 是例外（属平台配置，见 `.gitignore`）。
 
@@ -376,6 +397,8 @@ vinext = Next.js on Vite，`vinext start` 是一个纯 Node HTTP 生产服务器
 | 手动重启某项目 | `touch container/<id>/project.json`，刷新门户页 |
 | 下线项目 | 移出 `container/`（或先加 `"hidden": true` 只隐藏卡片），刷新门户页 |
 | 置顶常用项目 | 把目录名填进 `container/pinned.json` 的 `pinned` 数组，刷新门户页 |
+| 调整卡片先后 | 改 `project.json` 的 `addedAt`（非置顶项按它倒序排），刷新门户页 |
+| 关掉每日惊喜 | `container/pinned.json` 里设 `"dailySurprise": false`，刷新门户页 |
 | 查/改访问次数 | 看 `data/visits.json`（`@portal` 为门户首页）；要改先停网关，否则会被内存值覆盖 |
 | 重启全部 | `./scripts/stop.sh && ./scripts/start.sh -d` |
 | 修改门户文案 | 编辑 `site.config.json`，刷新页面即生效 |
